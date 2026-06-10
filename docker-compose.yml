@@ -1,0 +1,8 @@
+services:
+  essential8:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5656:4545"
+    restart: unless-stopped
