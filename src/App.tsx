@@ -10,7 +10,7 @@ import { strategies, type Requirement, type MaturityLevelData, type MitigationSt
 import { ThemeProvider, useTheme, themes, type ThemeName } from './ThemeContext';
 
 const API = '/api';
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 
 /* ═══════════════════════════════════════════════════════════════
    ICON MAP
@@ -485,10 +485,7 @@ function AuditWorkflow({ auditId }) {
   const [statuses, setStatuses] = useState({});
   const [evidence, setEvidence] = useState({});
   const [saving, setSaving] = useState(false);
-  const [currentStep, setCurrentStep] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    return parseInt(params.get('step') || '0');
-  });
+  const [currentStep, setCurrentStep] = useState(0);
   const loadedRef = useRef(false);
 
   const strategy = audit ? strategies.find(s => s.id === audit.control_id) : null;
@@ -496,42 +493,26 @@ function AuditWorkflow({ auditId }) {
   const reqs = maturity?.requirements || [];
   const currentReq = reqs[currentStep];
 
-  const stepInitialized = useRef(false);
-
-  // Persist step in URL (skip first render)
   useEffect(() => {
-    if (stepInitialized.current) {
-      const url = new URL(window.location);
-      url.searchParams.set('step', currentStep.toString());
-      window.history.replaceState({}, '', url);
-    } else {
-      stepInitialized.current = true;
-    }
-  }, [currentStep]);
-
-  const loadAudit = useCallback(async () => {
-    try {
-      const [a, s, e] = await Promise.all([
-        apiFetch(`/audits/${auditId}`),
-        apiFetch(`/audits/${auditId}/requirements`),
-        apiFetch(`/audits/${auditId}/evidence`)
-      ]);
-      setAudit(a);
-      const sm = {};
-      s.forEach(rs => { sm[rs.requirement_id] = rs; });
-      setStatuses(sm);
-      const em = {};
-      e.forEach(ev => { if (!em[ev.requirement_id]) em[ev.requirement_id] = []; em[ev.requirement_id].push(ev); });
-      setEvidence(em);
-    } catch (err) { console.error('Failed to load audit:', err); }
+    if (loadedRef.current) return;
+    loadedRef.current = true;
+    (async () => {
+      try {
+        const [a, s, e] = await Promise.all([
+          apiFetch(`/audits/${auditId}`),
+          apiFetch(`/audits/${auditId}/requirements`),
+          apiFetch(`/audits/${auditId}/evidence`)
+        ]);
+        setAudit(a);
+        const sm = {};
+        s.forEach(rs => { sm[rs.requirement_id] = rs; });
+        setStatuses(sm);
+        const em = {};
+        e.forEach(ev => { if (!em[ev.requirement_id]) em[ev.requirement_id] = []; em[ev.requirement_id].push(ev); });
+        setEvidence(em);
+      } catch (err) { console.error('Failed to load audit:', err); }
+    })();
   }, [auditId]);
-
-  useEffect(() => {
-    if (!loadedRef.current) {
-      loadedRef.current = true;
-      loadAudit();
-    }
-  }, [loadAudit]);
 
   async function setCompliant(requirementId, compliant, notes = '') {
     setSaving(true);
