@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Link, Routes, Route, useParams, Navigate } from 'react-router-dom';
 import {
   Search, Shield, Clock, FileCode, UserCheck, Lock, Monitor, KeyRound,
@@ -489,21 +489,27 @@ function AuditWorkflow({ auditId }) {
     const params = new URLSearchParams(window.location.search);
     return parseInt(params.get('step') || '0');
   });
+  const loadedRef = useRef(false);
 
   const strategy = audit ? strategies.find(s => s.id === audit.control_id) : null;
   const maturity = strategy?.maturityLevels.find(m => m.level === audit?.maturity_level);
   const reqs = maturity?.requirements || [];
   const currentReq = reqs[currentStep];
 
+  const stepInitialized = useRef(false);
+
+  // Persist step in URL (skip first render)
   useEffect(() => {
-    const url = new URL(window.location);
-    url.searchParams.set('step', currentStep.toString());
-    window.history.replaceState({}, '', url);
+    if (stepInitialized.current) {
+      const url = new URL(window.location);
+      url.searchParams.set('step', currentStep.toString());
+      window.history.replaceState({}, '', url);
+    } else {
+      stepInitialized.current = true;
+    }
   }, [currentStep]);
 
-  useEffect(() => { loadAudit(); }, [auditId]);
-
-  async function loadAudit() {
+  const loadAudit = useCallback(async () => {
     try {
       const [a, s, e] = await Promise.all([
         apiFetch(`/audits/${auditId}`),
@@ -518,7 +524,14 @@ function AuditWorkflow({ auditId }) {
       e.forEach(ev => { if (!em[ev.requirement_id]) em[ev.requirement_id] = []; em[ev.requirement_id].push(ev); });
       setEvidence(em);
     } catch (err) { console.error('Failed to load audit:', err); }
-  }
+  }, [auditId]);
+
+  useEffect(() => {
+    if (!loadedRef.current) {
+      loadedRef.current = true;
+      loadAudit();
+    }
+  }, [loadAudit]);
 
   async function setCompliant(requirementId, compliant, notes = '') {
     setSaving(true);
