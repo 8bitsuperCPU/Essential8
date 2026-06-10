@@ -8,6 +8,12 @@ export default defineConfig({
     port: 4545,
     host: true,
     allowedHosts: ['e8.8bitcpu.win'],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     outDir: 'dist',

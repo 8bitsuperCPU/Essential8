@@ -8,13 +8,16 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-FROM node:24-alpine
-
-RUN npm install -g serve@14
+FROM oven/bun:1.3-alpine
 
 WORKDIR /app
 
 COPY --from=builder /app/dist ./dist
+COPY backend ./backend
+COPY data ./data
+
+RUN mkdir -p /app/data/uploads
 
 EXPOSE 4545
-CMD ["serve", "-s", "dist", "-l", "4545", "--no-clipboard"]
+
+CMD ["bun", "backend/server.js"]
