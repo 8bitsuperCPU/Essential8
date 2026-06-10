@@ -23,6 +23,7 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   margin: 0;
   min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #root {
@@ -46,45 +47,36 @@ body {
 
 /* Glassmorphism card */
 .glass-card {
-  background: rgba(18, 26, 48, 0.7);
+  background: color-mix(in srgb, var(--color-cyber-card) 70%, transparent);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(30, 45, 80, 0.6);
+  border: 1px solid color-mix(in srgb, var(--color-cyber-border) 60%, transparent);
   transition: all 0.3s ease;
 }
 
 .glass-card:hover {
-  border-color: rgba(0, 229, 255, 0.4);
-  box-shadow: 0 0 30px rgba(0, 229, 255, 0.1), inset 0 0 30px rgba(0, 229, 255, 0.03);
+  border-color: color-mix(in srgb, var(--color-cyber-primary) 40%, transparent);
+  box-shadow: 0 0 30px color-mix(in srgb, var(--color-cyber-primary) 10%, transparent),
+              inset 0 0 30px color-mix(in srgb, var(--color-cyber-primary) 3%, transparent);
 }
 
 /* Glow effects */
 .glow-primary {
-  box-shadow: 0 0 20px rgba(0, 229, 255, 0.3);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--color-cyber-primary) 30%, transparent);
 }
 
 .glow-secondary {
-  box-shadow: 0 0 20px rgba(123, 97, 255, 0.3);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--color-cyber-secondary) 30%, transparent);
 }
 
 /* Animations */
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 0 5px rgba(0, 229, 255, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 20px rgba(0, 229, 255, 0.4);
-  }
+  0%, 100% { box-shadow: 0 0 5px color-mix(in srgb, var(--color-cyber-primary) 20%, transparent); }
+  50% { box-shadow: 0 0 20px color-mix(in srgb, var(--color-cyber-primary) 40%, transparent); }
 }
 
 .animate-fade-in-up {
@@ -99,4 +91,20 @@ body {
 .modal-overlay {
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(4px);
+}
+
+/* Light theme overrides for better readability */
+[data-theme="light"] .glass-card {
+  background: var(--color-cyber-card);
+  border: 1px solid var(--color-cyber-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .glass-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  border-color: var(--color-cyber-primary);
+}
+
+[data-theme="light"] .modal-overlay {
+  background: rgba(0, 0, 0, 0.4);
 }
