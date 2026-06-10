@@ -163,6 +163,34 @@ export function deleteEvidence(id) {
   return { deleted: true };
 }
 
+export function deleteAudit(id) {
+  const db = getDb();
+  // Delete associated files first
+  const evidence = db.prepare("SELECT * FROM evidence WHERE audit_id = ? AND file_path IS NOT NULL").all(id);
+  for (const ev of evidence) {
+    try { Bun.file(ev.file_path).delete(); } catch {}
+  }
+  db.prepare("DELETE FROM requirement_status WHERE audit_id = ?").run(id);
+  db.prepare("DELETE FROM evidence WHERE audit_id = ?").run(id);
+  db.prepare("DELETE FROM audits WHERE id = ?").run(id);
+  db.close();
+  return { deleted: true };
+}
+
+export function deleteAllAudits() {
+  const db = getDb();
+  // Delete all associated files
+  const evidence = db.prepare("SELECT * FROM evidence WHERE file_path IS NOT NULL").all();
+  for (const ev of evidence) {
+    try { Bun.file(ev.file_path).delete(); } catch {}
+  }
+  db.prepare("DELETE FROM requirement_status").run();
+  db.prepare("DELETE FROM evidence").run();
+  db.prepare("DELETE FROM audits").run();
+  db.close();
+  return { deleted: true };
+}
+
 export function getAuditReport(auditId) {
   const db = getDb();
   const audit = db.prepare("SELECT * FROM audits WHERE id = ?").get(auditId);
@@ -182,4 +210,19 @@ export function getAuditReport(auditId) {
       evidenceItems: evidence.length
     }
   };
+}
+
+export function getOverallComplianceReport() {
+  const db = getDb();
+  // Get all completed audits with their compliance data
+  const audits = db.prepare(`
+    SELECT a.id, a.identifier, a.control_id, a.maturity_level, a.status,
+      (SELECT COUNT(*) FROM requirement_status rs WHERE rs.audit_id = a.id AND rs.compliant = 1) as compliant_count,
+      (SELECT COUNT(*) FROM requirement_status rs WHERE rs.audit_id = a.id) as total_requirements
+    FROM audits a
+    WHERE a.status = 'completed'
+    ORDER BY a.control_id, a.maturity_level DESC
+  `).all();
+  db.close();
+  return audits;
 }

@@ -1,4 +1,4 @@
-import { initDb, createAudit, getAuditByIdentifier, getAuditById, getAllAudits, getAuditsSummary, updateAuditStatus, setRequirementStatus, getRequirementStatuses, addEvidence, getEvidenceForAudit, getEvidenceForRequirement, deleteEvidence, getAuditReport } from "./database.js";
+import { initDb, createAudit, getAuditByIdentifier, getAuditById, getAllAudits, getAuditsSummary, updateAuditStatus, setRequirementStatus, getRequirementStatuses, addEvidence, getEvidenceForAudit, getEvidenceForRequirement, deleteEvidence, getAuditReport, deleteAudit, deleteAllAudits, getOverallComplianceReport } from "./database.js";
 import { join } from "path";
 import { mkdirSync } from "fs";
 import { fileURLToPath } from "url";
@@ -120,11 +120,26 @@ const server = Bun.serve({
         return jsonResponse(deleteEvidence(parseInt(path.split("/").pop())));
       }
 
-      // --- Reports ---
+      // --- Delete Individual Audit ---
+      if (path.match(/^\/api\/audits\/\d+$/) && method === "DELETE") {
+        return jsonResponse(deleteAudit(parseInt(path.split("/").pop())));
+      }
+
+      // --- Delete All Audits ---
+      if (path === "/api/audits" && method === "DELETE") {
+        return jsonResponse(deleteAllAudits());
+      }
+
+      // --- Individual Audit Report ---
       if (path.match(/^\/api\/audits\/\d+\/report$/) && method === "GET") {
         const report = getAuditReport(parseInt(path.split("/")[3]));
         if (!report) return errorResponse("Audit not found", 404);
         return jsonResponse(report);
+      }
+
+      // --- Overall Compliance Report ---
+      if (path === "/api/audits/overall-report" && method === "GET") {
+        return jsonResponse(getOverallComplianceReport());
       }
 
       // --- Serve uploaded files ---
