@@ -467,16 +467,25 @@ function NewAuditForm({ identifier, onCreated }) {
    ═══════════════════════════════════════════════════════════════ */
 function AuditWorkflow({ auditId }) {
   const [audit, setAudit] = useState(null);
-  const [requirements, setRequirements] = useState([]);
   const [statuses, setStatuses] = useState({});
   const [evidence, setEvidence] = useState({});
-  const [currentStep, setCurrentStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [currentStep, setCurrentStep] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return parseInt(params.get("step") || "0");
+  });
 
   const strategy = audit ? strategies.find(s => s.id === audit.control_id) : null;
   const maturity = strategy?.maturityLevels.find(m => m.level === audit?.maturity_level);
   const reqs = maturity?.requirements || [];
   const currentReq = reqs[currentStep];
+
+  // Persist step in URL
+  useEffect(() => {
+    const url = new URL(window.location);
+    url.searchParams.set("step", currentStep.toString());
+    window.history.replaceState({}, "", url);
+  }, [currentStep]);
 
   useEffect(() => {
     loadAudit();
@@ -666,7 +675,7 @@ function RequirementAssessment({ requirement, status, evidence, onCompliant, onE
       {/* Notes */}
       <div className="mb-4">
         <label className="block text-xs font-medium text-cyber-muted mb-1">Notes (optional)</label>
-        <textarea value={notes} onChange={e => setNotes(e.target.value)} onBlur={() => onCompliant(isCompliant, notes)} placeholder="Add notes about this requirement..." rows={2} className="w-full rounded-lg border border-cyber-border bg-cyber-bg px-3 py-2 text-sm text-cyber-text placeholder-cyber-muted outline-none focus:border-cyber-primary/50 resize-none" />
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} onBlur={() => { if (!saving) onCompliant(isCompliant, notes); }} placeholder="Add notes about this requirement..." rows={2} className="w-full rounded-lg border border-cyber-border bg-cyber-bg px-3 py-2 text-sm text-cyber-text placeholder-cyber-muted outline-none focus:border-cyber-primary/50 resize-none" />
       </div>
 
       {/* Evidence section */}
