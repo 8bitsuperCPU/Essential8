@@ -376,7 +376,7 @@ function OverallComplianceReport() {
               <div key={cs.id} className="glass-card rounded-xl p-6 border-l-4 border-cyber-danger/30">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyber-danger/10 border border-cyber-danger/20">{iconMap[cs.icon] && React.createElement(iconMap[cs.icon], { className: "text-cyber-danger", size: 20 })}</div>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyber-danger/10 border border-cyber-danger/20">{(() => { const Icon = iconMap[cs.icon]; return Icon ? <Icon className="text-cyber-danger" size={20} /> : null; })()}</div>
                     <div><h4 className="text-sm font-bold text-cyber-text">{cs.name}</h4><p className="text-xs text-cyber-muted">ML{cs.highestLevel} • {cs.compliant}/{cs.total} compliant ({cs.pct}%)</p></div>
                   </div>
                   <span className="rounded-full bg-cyber-danger/10 px-3 py-1 text-xs font-bold text-cyber-danger">{100 - cs.pct}% at risk</span>
@@ -406,7 +406,7 @@ function OverallComplianceReport() {
             {compliantControls.map(cs => (
               <div key={cs.id} className="glass-card rounded-xl p-4 border-l-4 border-cyber-success/30">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyber-success/10 border border-cyber-success/20">{iconMap[cs.icon] && React.createElement(iconMap[cs.icon], { className: "text-cyber-success", size: 16 })}</div>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyber-success/10 border border-cyber-success/20">{(() => { const Icon = iconMap[cs.icon]; return Icon ? <Icon className="text-cyber-success" size={16} /> : null; })()}</div>
                   <div className="flex-1"><h4 className="text-sm font-bold text-cyber-text">{cs.name}</h4><p className="text-xs text-cyber-muted">ML{cs.highestLevel} • 100% compliant</p></div>
                   <CheckCircle className="text-cyber-success" size={18} />
                 </div>
@@ -424,7 +424,7 @@ function OverallComplianceReport() {
             {unassessedControls.map(cs => (
               <div key={cs.id} className="glass-card rounded-xl p-4 opacity-50">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyber-border/30">{iconMap[cs.icon] && React.createElement(iconMap[cs.icon], { className: "text-cyber-muted", size: 16 })}</div>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyber-border/30">{(() => { const Icon = iconMap[cs.icon]; return Icon ? <Icon className="text-cyber-muted" size={16} /> : null; })()}</div>
                   <div><h4 className="text-sm font-medium text-cyber-muted">{cs.name}</h4><p className="text-xs text-cyber-muted">No completed audit</p></div>
                 </div>
               </div>
