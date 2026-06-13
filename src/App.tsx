@@ -319,7 +319,6 @@ function OverallComplianceReport() {
     }
   }
 
-  // Calculate overall stats
   let totalCompliant = 0;
   let totalReqs = 0;
   const controlSummaries = Object.entries(controlMap).map(([id, c]) => {
@@ -331,10 +330,22 @@ function OverallComplianceReport() {
     totalCompliant += compliant;
     totalReqs += total;
     const pct = total > 0 ? Math.round((compliant / total) * 100) : 0;
-    return { id, name: c.name, icon: c.icon, highestLevel, highestAudit, compliant, total, pct, hasAudit: !!highestAudit };
+    // Get the full requirement data for non-compliant items
+    const nonCompliantReqs = highestAudit?.nonCompliantReqs || [];
+    const missingReqs = nonCompliantReqs.map(nc => {
+      // Find the requirement in the strategy data
+      const strategy = strategies.find(s => s.id === id);
+      const ml = strategy?.maturityLevels.find(m => m.level === highestLevel);
+      const req = ml?.requirements.find(r => r.id === nc.requirement_id);
+      return { id: nc.requirement_id, text: req?.text || nc.requirement_id, notes: nc.notes, purpose: req?.purpose || '', implementation: req?.implementation || '' };
+    });
+    return { id, name: c.name, icon: c.icon, highestLevel, highestAudit, compliant, total, pct, hasAudit: !!highestAudit, isCompliant: pct === 100, missingReqs };
   });
 
   const overallPct = totalReqs > 0 ? Math.round((totalCompliant / totalReqs) * 100) : 0;
+  const nonCompliantControls = controlSummaries.filter(c => c.hasAudit && !c.isCompliant);
+  const compliantControls = controlSummaries.filter(c => c.hasAudit && c.isCompliant);
+  const unassessedControls = controlSummaries.filter(c => !c.hasAudit);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
@@ -352,29 +363,75 @@ function OverallComplianceReport() {
           <div className="text-center"><div className="text-3xl font-bold text-cyber-secondary">{controlSummaries.filter(c => c.hasAudit).length}/8</div><div className="text-xs text-cyber-muted">Controls Assessed</div></div>
         </div>
         <div className="h-3 rounded-full bg-cyber-border overflow-hidden">
-          <div className="h-full rounded-full bg-gradient-to-r from-cyber-danger via-cyber-warning to-cyber-success transition-all" style={{ width: `${overallPct}%` }} />
+          <div className={`h-full rounded-full transition-all ${overallPct === 100 ? 'bg-cyber-success' : overallPct >= 50 ? 'bg-cyber-warning' : 'bg-cyber-danger'}`} style={{ width: `${overallPct}%` }} />
         </div>
       </div>
 
-      {/* Per-control breakdown */}
-      <h3 className="text-lg font-bold text-cyber-text mb-4">Control Breakdown</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {controlSummaries.map(cs => {
-          const Icon = iconMap[cs.icon];
-          return (
-            <div key={cs.id} className={`glass-card rounded-xl p-5 ${cs.hasAudit ? '' : 'opacity-60'}`}>
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyber-primary/10 border border-cyber-primary/20">{Icon && <Icon className="text-cyber-primary" size={20} />}</div>
-                <div className="flex-1"><h4 className="text-sm font-bold text-cyber-text">{cs.name}</h4>{cs.hasAudit ? <p className="text-xs text-cyber-muted">ML{cs.highestLevel} • {cs.identifier}</p> : <p className="text-xs text-cyber-muted">Not assessed</p>}</div>
+      {/* Risk Report - for controls less than 100% */}
+      {nonCompliantControls.length > 0 && (
+        <div className="mb-8">
+          <h3 className="text-lg font-bold text-cyber-danger mb-4 flex items-center gap-2"><AlertTriangle size={18} /> Risk Report — Incomplete Controls ({nonCompliantControls.length})</h3>
+          <div className="space-y-6">
+            {nonCompliantControls.map(cs => (
+              <div key={cs.id} className="glass-card rounded-xl p-6 border-l-4 border-cyber-danger/30">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyber-danger/10 border border-cyber-danger/20">{iconMap[cs.icon] && React.createElement(iconMap[cs.icon], { className: "text-cyber-danger", size: 20 })}</div>
+                    <div><h4 className="text-sm font-bold text-cyber-text">{cs.name}</h4><p className="text-xs text-cyber-muted">ML{cs.highestLevel} • {cs.compliant}/{cs.total} compliant ({cs.pct}%)</p></div>
+                  </div>
+                  <span className="rounded-full bg-cyber-danger/10 px-3 py-1 text-xs font-bold text-cyber-danger">{100 - cs.pct}% at risk</span>
+                </div>
+                <div className="h-2 rounded-full bg-cyber-border overflow-hidden mb-4"><div className="h-full rounded-full bg-cyber-danger transition-all" style={{ width: `${cs.pct}%` }} /></div>
+                <h5 className="text-xs font-bold uppercase tracking-wider text-cyber-muted mb-2">Missing Requirements ({cs.missingReqs.length})</h5>
+                <div className="space-y-3">
+                  {cs.missingReqs.map((mr, i) => (
+                    <div key={i} className="rounded-lg border border-cyber-danger/20 bg-cyber-danger/5 p-3">
+                      <div className="flex items-start gap-2 mb-1"><XCircle size={14} className="text-cyber-danger mt-0.5 shrink-0" /><p className="text-xs font-medium text-cyber-text">{mr.text}</p></div>
+                      {mr.notes && <p className="text-[10px] text-cyber-muted italic mb-1 ml-5">Note: {mr.notes}</p>}
+                      <div className="ml-5 mt-2 rounded bg-cyber-bg/50 p-2"><p className="text-[10px] font-bold text-cyber-secondary mb-0.5">Recommendation:</p><p className="text-[10px] text-cyber-text">{mr.implementation}</p></div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              {cs.hasAudit ? (<>
-                <div className="flex items-center justify-between mb-1"><span className="text-xs text-cyber-muted">{cs.compliant}/{cs.total} compliant</span><span className={`text-xs font-bold ${cs.pct >= 80 ? 'text-cyber-success' : cs.pct >= 50 ? 'text-cyber-warning' : 'text-cyber-danger'}`}>{cs.pct}%</span></div>
-                <div className="h-2 rounded-full bg-cyber-border overflow-hidden"><div className={`h-full rounded-full transition-all ${cs.pct >= 80 ? 'bg-cyber-success' : cs.pct >= 50 ? 'bg-cyber-warning' : 'bg-cyber-danger'}`} style={{ width: `${cs.pct}%` }} /></div>
-              </>) : <div className="h-2 rounded-full bg-cyber-border" />}
-            </div>
-          );
-        })}
-      </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Compliant controls */}
+      {compliantControls.length > 0 && (
+        <div className="mb-8">
+          <h3 className="text-lg font-bold text-cyber-success mb-4 flex items-center gap-2"><CheckCircle size={18} /> Fully Compliant Controls ({compliantControls.length})</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {compliantControls.map(cs => (
+              <div key={cs.id} className="glass-card rounded-xl p-4 border-l-4 border-cyber-success/30">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyber-success/10 border border-cyber-success/20">{iconMap[cs.icon] && React.createElement(iconMap[cs.icon], { className: "text-cyber-success", size: 16 })}</div>
+                  <div className="flex-1"><h4 className="text-sm font-bold text-cyber-text">{cs.name}</h4><p className="text-xs text-cyber-muted">ML{cs.highestLevel} • 100% compliant</p></div>
+                  <CheckCircle className="text-cyber-success" size={18} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Unassessed controls */}
+      {unassessedControls.length > 0 && (
+        <div>
+          <h3 className="text-lg font-bold text-cyber-muted mb-4 flex items-center gap-2"><AlertCircle size={18} /> Not Yet Assessed ({unassessedControls.length})</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {unassessedControls.map(cs => (
+              <div key={cs.id} className="glass-card rounded-xl p-4 opacity-50">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyber-border/30">{iconMap[cs.icon] && React.createElement(iconMap[cs.icon], { className: "text-cyber-muted", size: 16 })}</div>
+                  <div><h4 className="text-sm font-medium text-cyber-muted">{cs.name}</h4><p className="text-xs text-cyber-muted">No completed audit</p></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -223,6 +223,15 @@ export function getOverallComplianceReport() {
     WHERE a.status = 'completed'
     ORDER BY a.control_id, a.maturity_level DESC
   `).all();
+
+  // For each audit, get the non-compliant requirement IDs
+  for (const audit of audits) {
+    const nonCompliant = db.prepare(
+      "SELECT requirement_id, notes FROM requirement_status WHERE audit_id = ? AND compliant = 0"
+    ).all(audit.id);
+    audit.nonCompliantReqs = nonCompliant;
+  }
+
   db.close();
   return audits;
 }
