@@ -97,7 +97,8 @@ export function getAuditsSummary() {
   const rows = db.prepare(`
     SELECT a.*, 
       (SELECT COUNT(*) FROM requirement_status rs WHERE rs.audit_id = a.id AND rs.compliant = 1) as compliant_count,
-      (SELECT COUNT(*) FROM requirement_status rs WHERE rs.audit_id = a.id) as total_requirements
+      (SELECT COUNT(*) FROM requirement_status rs WHERE rs.audit_id = a.id) as total_requirements,
+      (SELECT COUNT(*) FROM evidence e WHERE e.audit_id = a.id) as evidence_count
     FROM audits a ORDER BY updated_at DESC
   `).all();
   db.close();

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Link, Routes, Route, useParams, Navigate } from 'react-router-dom';
+import { Link, Routes, Route, useParams, Navigate, useNavigate } from 'react-router-dom';
 import {
   Search, Shield, Clock, FileCode, UserCheck, Lock, Monitor, KeyRound,
   Moon, Sun, ChevronRight, ArrowLeft, X, ExternalLink, CheckCircle, AlertTriangle, Info, Database,
@@ -102,6 +102,7 @@ function MaturityView() {
    AUDIT HOME — New multi-control workflow
    ═══════════════════════════════════════════════════════════════ */
 function AuditHome() {
+  const navigate = useNavigate();
   const [catalogue, setCatalogue] = useState('');
   const [foundAudit, setFoundAudit] = useState(null);
   const [error, setError] = useState('');
@@ -110,9 +111,44 @@ function AuditHome() {
   const [showNew, setShowNew] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortField, setSortField] = useState('updated_at');
+  const [sortDir, setSortDir] = useState('desc');
 
   function refresh() { apiFetch('/audits/summary').then(setAudits).catch(() => {}); apiFetch('/audits/last').then(setLastAudit).catch(() => {}); }
   useEffect(() => { refresh(); }, [refreshKey]);
+
+  const filteredAudits = useMemo(() => {
+    let result = [...audits];
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(a =>
+        a.identifier.toLowerCase().includes(q) ||
+        (strategies.find(s => s.id === a.control_id)?.name || '').toLowerCase().includes(q) ||
+        a.status.toLowerCase().includes(q) ||
+        String(a.maturity_level).includes(q)
+      );
+    }
+    result.sort((a, b) => {
+      let va = a[sortField], vb = b[sortField];
+      if (typeof va === 'string') va = va.toLowerCase();
+      if (typeof vb === 'string') vb = vb.toLowerCase();
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return result;
+  }, [audits, searchQuery, sortField, sortDir]);
+
+  function toggleSort(field) {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
+  }
+
+  function sortIcon(field) {
+    if (sortField !== field) return '↕';
+    return sortDir === 'asc' ? '↑' : '↓';
+  }
 
   async function lookupCatalogue() {
     if (!catalogue.trim()) { setError('Please enter an audit name'); return; }
@@ -139,14 +175,26 @@ function AuditHome() {
   function handleLastAuditClick() {
     if (!lastAudit) return;
     if (lastAudit.status === 'completed') {
-      window.location.href = `/audit/${lastAudit.id}/report`;
+      navigate(`/audit/${lastAudit.id}/report`);
     } else {
-      window.location.href = `/audit/${lastAudit.id}`;
+      navigate(`/audit/${lastAudit.id}`);
     }
   }
 
+  const statusBadge = (status, locked) => {
+    const base = "rounded px-2 py-0.5 text-[10px] font-bold uppercase";
+    if (locked) return <span className={`${base} bg-cyber-warning/15 text-cyber-warning`}>🔒 Locked</span>;
+    if (status === 'completed') return <span className={`${base} bg-cyber-success/15 text-cyber-success`}>Completed</span>;
+    return <span className={`${base} bg-cyber-primary/15 text-cyber-primary`}>In Progress</span>;
+  };
+
+  const formatDate = (d) => {
+    if (!d)  return '—';
+    try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return d; }
+  };
+
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <div className="mx-auto max-w-6xl px-4 py-8">
       <Link to="/" className="inline-flex items-center gap-1 text-sm text-cyber-muted hover:text-cyber-primary mb-6 transition-colors"><ArrowLeft size={14} /> Back</Link>
       <h2 className="text-2xl font-bold text-cyber-text mb-2">Compliance Audit</h2>
       <p className="text-cyber-muted text-sm mb-8">Start a new audit or look up an existing one.</p>
@@ -192,11 +240,110 @@ function AuditHome() {
       {/* New Audit Form */}
       {showNew && <NewAuditForm onCreated={(a) => { setRefreshKey(k => k + 1); setFoundAudit(a); setShowNew(false); setCatalogue(a.identifier); }} />}
 
-      {/* All Audits List */}
+      {/* Audit Catalogue Table */}
       {audits.length > 0 && (
         <div>
-          <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-bold text-cyber-text">All Audits ({audits.length})</h3><button onClick={() => setDeleteConfirm('all')} className="rounded-lg border border-cyber-danger/30 px-3 py-1.5 text-xs font-medium text-cyber-danger hover:bg-cyber-danger/10 transition-colors flex items-center gap-1"><Trash size={12} />Delete All</button></div>
-          <div className="space-y-3">{audits.map(a => (<div key={a.identifier} className="glass-card rounded-lg p-4 flex items-center justify-between"><div><p className="text-sm font-medium text-cyber-text">{a.identifier}{a.locked ? <LockIcon size={12} className="inline ml-1 text-cyber-muted" /> : null}</p><p className="text-xs text-cyber-muted">{strategies.find(s => s.id === a.control_id)?.name} — ML{a.maturity_level} • {a.status}{a.total_requirements > 0 && ` • ${a.compliant_count}/${a.total_requirements}`}</p></div><div className="flex items-center gap-2"><Link to={`/audit/${a.id}`} className="text-xs text-cyber-primary hover:underline">Open</Link><Link to={`/audit/${a.id}/report`} className="text-xs text-cyber-secondary hover:underline">Report</Link><button onClick={() => deleteAudit(a.id)} className="text-xs text-cyber-danger hover:underline"><Trash2 size={12} /></button></div></div>))}</div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-cyber-text">Audit Catalogue <span className="text-cyber-muted font-normal text-sm">({audits.length})</span></h3>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-cyber-muted" />
+                <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search audits..." className="rounded-lg border border-cyber-border bg-cyber-bg pl-9 pr-3 py-1.5 text-xs text-cyber-text placeholder-cyber-muted outline-none focus:border-cyber-primary/50 w-52 transition-colors" />
+              </div>
+              <button onClick={() => setDeleteConfirm('all')} className="rounded-lg border border-cyber-danger/30 px-3 py-1.5 text-xs font-medium text-cyber-danger hover:bg-cyber-danger/10 transition-colors flex items-center gap-1"><Trash size={12} />Delete All</button>
+            </div>
+          </div>
+          <div className="glass-card rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-cyber-border bg-cyber-bg/50">
+                    <th className="text-left px-4 py-3 text-xs font-bold text-cyber-muted uppercase tracking-wider cursor-pointer hover:text-cyber-text select-none" onClick={() => toggleSort('identifier')}>
+                      <span className="flex items-center gap-1">Audit Name <span className="text-[10px]">{sortIcon('identifier')}</span></span>
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-cyber-muted uppercase tracking-wider cursor-pointer hover:text-cyber-text select-none" onClick={() => toggleSort('created_at')}>
+                      <span className="flex items-center gap-1">Date <span className="text-[10px]">{sortIcon('created_at')}</span></span>
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-cyber-muted uppercase tracking-wider cursor-pointer hover:text-cyber-text select-none" onClick={() => toggleSort('control_id')}>
+                      <span className="flex items-center gap-1">Control <span className="text-[10px]">{sortIcon('control_id')}</span></span>
+                    </th>
+                    <th className="text-center px-4 py-3 text-xs font-bold text-cyber-muted uppercase tracking-wider cursor-pointer hover:text-cyber-text select-none" onClick={() => toggleSort('maturity_level')}>
+                      <span className="flex items-center justify-center gap-1">ML <span className="text-[10px]">{sortIcon('maturity_level')}</span></span>
+                    </th>
+                    <th className="text-center px-4 py-3 text-xs font-bold text-cyber-muted uppercase tracking-wider cursor-pointer hover:text-cyber-text select-none" onClick={() => toggleSort('status')}>
+                      <span className="flex items-center justify-center gap-1">Status <span className="text-[10px]">{sortIcon('status')}</span></span>
+                    </th>
+                    <th className="text-center px-4 py-3 text-xs font-bold text-cyber-muted uppercase tracking-wider cursor-pointer hover:text-cyber-text select-none" onClick={() => toggleSort('compliant_count')}>
+                      <span className="flex items-center justify-center gap-1">Compliance <span className="text-[10px]">{sortIcon('compliant_count')}</span></span>
+                    </th>
+                    <th className="text-center px-4 py-3 text-xs font-bold text-cyber-muted uppercase tracking-wider">
+                      Evidence
+                    </th>
+                    <th className="text-right px-4 py-3 text-xs font-bold text-cyber-muted uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAudits.map((a) => {
+                    const control = strategies.find(s => s.id === a.control_id);
+                    const pct = a.total_requirements > 0 ? Math.round((a.compliant_count / a.total_requirements) * 100) : 0;
+                    return (
+                      <tr key={a.identifier} className="border-b border-cyber-border/30 hover:bg-cyber-primary/5 transition-colors">
+                        <td className="px-4 py-3">
+                          <span className="font-medium text-cyber-text flex items-center gap-1.5">
+                            {a.locked ? <LockIcon size={11} className="text-cyber-warning" /> : null}
+                            {a.identifier}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-cyber-muted text-xs">{formatDate(a.created_at)}</td>
+                        <td className="px-4 py-3 text-xs">
+                          <span className="text-cyber-text">{control?.name || a.control_id}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center text-xs">
+                          <span className="rounded bg-cyber-primary/10 px-1.5 py-0.5 text-cyber-primary font-medium">ML{a.maturity_level}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center">{statusBadge(a.status, a.locked)}</td>
+                        <td className="px-4 py-3 text-center">
+                          {a.total_requirements > 0 ? (
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="h-1.5 w-16 rounded-full bg-cyber-border overflow-hidden">
+                                <div className={`h-full rounded-full ${pct === 100 ? 'bg-cyber-success' : pct >= 50 ? 'bg-cyber-warning' : 'bg-cyber-danger'}`} style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="text-[10px] text-cyber-muted w-8 text-right">{a.compliant_count}/{a.total_requirements}</span>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-cyber-muted">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {a.evidence_count > 0 ? (
+                            <span className="inline-flex items-center gap-1 rounded bg-cyber-secondary/10 px-1.5 py-0.5 text-[10px] text-cyber-secondary">
+                              <FileUp size={10} />{a.evidence_count}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-cyber-muted">0</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-2">
+                            <Link to={`/audit/${a.id}`} className="rounded border border-cyber-border px-2 py-1 text-[10px] text-cyber-muted hover:text-cyber-text hover:border-cyber-primary/40 transition-colors">Open</Link>
+                            <Link to={`/audit/${a.id}/report`} className="rounded border border-cyber-secondary/30 px-2 py-1 text-[10px] text-cyber-secondary hover:bg-cyber-secondary/10 transition-colors">Report</Link>
+                            <button onClick={() => deleteAudit(a.id)} className="rounded border border-cyber-danger/30 px-2 py-1 text-[10px] text-cyber-danger hover:bg-cyber-danger/10 transition-colors"><Trash2 size={10} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {filteredAudits.length === 0 && (
+              <div className="px-4 py-8 text-center text-sm text-cyber-muted">
+                {searchQuery ? 'No audits match your search.' : 'No audits yet.'}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -407,6 +554,7 @@ function RiskReportCard({ cs }) {
 function OverallComplianceReport() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   useEffect(() => { apiFetch('/audits/overall-report').then(setData).catch(console.error).finally(() => setLoading(false)); }, []);
   if (loading) return <div className="p-8 text-cyber-muted">Loading...</div>;
   if (!data) return <div className="p-8 text-cyber-danger">Failed</div>;
@@ -439,7 +587,169 @@ function OverallComplianceReport() {
   const cControls = controlSummaries.filter(c => c.hasAudit && c.isCompliant);
   const uControls = controlSummaries.filter(c => !c.hasAudit);
 
-  return (<div className="mx-auto max-w-5xl px-4 py-8"><Link to="/audit" className="inline-flex items-center gap-1 text-sm text-cyber-muted hover:text-cyber-primary mb-6 transition-colors"><ArrowLeft size={14} /> Back</Link><h2 className="text-2xl font-bold text-cyber-text mb-2">Overall Compliance Report</h2><p className="text-cyber-muted text-sm mb-8">Compliance across all 8 Essential Eight controls by maturity level</p>
+  async function generatePDF() {
+    setGenerating(true);
+    try {
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 15;
+      const contentWidth = pageWidth - margin * 2;
+      let y = margin;
+
+      // Helper: add page if needed
+      function checkPageBreak(needed) {
+        if (y + needed > doc.internal.pageSize.getHeight() - margin) { doc.addPage(); y = margin; }
+      }
+
+      // Title
+      doc.setFontSize(18);
+      doc.setTextColor(0, 0, 0);
+      doc.text('Essential Eight — Overall Compliance Report', margin, y);
+      y += 8;
+      doc.setFontSize(9);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Generated: ${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString('en-GB')}`, margin, y);
+      y += 10;
+
+      // Summary box
+      doc.setFillColor(245, 245, 245);
+      doc.roundedRect(margin, y, contentWidth, 28, 2, 2, 'F');
+      doc.setFontSize(11);
+      doc.setTextColor(0, 0, 0);
+      doc.text('Executive Summary', margin + 4, y + 6);
+      doc.setFontSize(9);
+      doc.setTextColor(60, 60, 60);
+      doc.text(`Overall Compliance: ${overallPct}%`, margin + 4, y + 12);
+      doc.text(`Compliant Requirements: ${totalCompliant} / ${totalReqs}`, margin + 4, y + 17);
+      doc.text(`Controls Assessed: ${controlSummaries.filter(c => c.hasAudit).length} / 8`, margin + 70, y + 12);
+      doc.text(`Incomplete Controls: ${ncControls.length}`, margin + 70, y + 17);
+      doc.text(`Fully Compliant: ${cControls.length}`, margin + 130, y + 12);
+      doc.text(`Not Assessed: ${uControls.length}`, margin + 130, y + 17);
+      y += 34;
+
+      // Compliance by Control table
+      checkPageBreak(20);
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      doc.text('Compliance by Control', margin, y);
+      y += 6;
+      autoTable(doc, {
+        startY: y,
+        head: [['Control', 'Maturity Level', 'Compliant', 'Total', 'Compliance %']],
+        body: controlSummaries.map(cs => [
+          cs.name,
+          cs.hasAudit ? `ML${cs.highestLevel}` : 'Not Assessed',
+          cs.hasAudit ? String(cs.compliant) : '—',
+          cs.hasAudit ? String(cs.total) : '—',
+          cs.hasAudit ? `${cs.pct}%` : '—',
+        ]),
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [30, 45, 80], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
+        didParseCell: (hookData) => {
+          if (hookData.section === 'body' && hookData.column.index === 4) {
+            const val = hookData.cell.raw;
+            if (val === '100%') hookData.cell.styles.textColor = [0, 150, 0];
+            else if (val !== '—') {
+              const pctVal = parseInt(val);
+              if (pctVal < 50) hookData.cell.styles.textColor = [200, 0, 0];
+              else hookData.cell.styles.textColor = [200, 150, 0];
+            }
+          }
+        },
+      });
+      y = doc.lastAutoTable.finalY + 10;
+
+      // Risk Report — Non-compliant controls
+      if (ncControls.length > 0) {
+        checkPageBreak(20);
+        doc.setFontSize(12);
+        doc.setTextColor(180, 0, 0);
+        doc.text(`Risk Report — Incomplete Controls (${ncControls.length})`, margin, y);
+        y += 8;
+
+        for (const cs of ncControls) {
+          checkPageBreak(30);
+          doc.setFontSize(10);
+          doc.setTextColor(0, 0, 0);
+          doc.text(`${cs.name} — ML${cs.highestLevel} (${cs.pct}% compliant)`, margin, y);
+          y += 6;
+
+          if (cs.missingReqs.length > 0) {
+            autoTable(doc, {
+              startY: y,
+              head: [['Requirement ID', 'Description', 'Recommendation']],
+              body: cs.missingReqs.map(mr => [mr.id.toUpperCase(), mr.text.substring(0, 120), mr.implementation.substring(0, 120)]),
+              margin: { left: margin, right: margin },
+              styles: { fontSize: 7, cellPadding: 2, overflow: 'linebreak' },
+              headStyles: { fillColor: [180, 50, 50], textColor: 255, fontStyle: 'bold' },
+              columnStyles: { 0: { cellWidth: 22 }, 1: { cellWidth: 75 }, 2: { cellWidth: 'auto' } },
+            });
+            y = doc.lastAutoTable.finalY + 8;
+          }
+        }
+      }
+
+      // Fully Compliant Controls
+      if (cControls.length > 0) {
+        checkPageBreak(20);
+        doc.setFontSize(12);
+        doc.setTextColor(0, 150, 0);
+        doc.text(`Fully Compliant Controls (${cControls.length})`, margin, y);
+        y += 6;
+        autoTable(doc, {
+          startY: y,
+          head: [['Control', 'Maturity Level', 'Compliance']],
+          body: cControls.map(cs => [cs.name, `ML${cs.highestLevel}`, '100%']),
+          margin: { left: margin, right: margin },
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: { fillColor: [50, 130, 50], textColor: 255, fontStyle: 'bold' },
+        });
+        y = doc.lastAutoTable.finalY + 10;
+      }
+
+      // Not Assessed
+      if (uControls.length > 0) {
+        checkPageBreak(20);
+        doc.setFontSize(12);
+        doc.setTextColor(120, 120, 120);
+        doc.text(`Not Assessed (${uControls.length})`, margin, y);
+        y += 6;
+        autoTable(doc, {
+          startY: y,
+          head: [['Control', 'Status']],
+          body: uControls.map(cs => [cs.name, 'No audit conducted']),
+          margin: { left: margin, right: margin },
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: { fillColor: [120, 120, 120], textColor: 255, fontStyle: 'bold' },
+        });
+        y = doc.lastAutoTable.finalY + 10;
+      }
+
+      // Footer on each page
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Essential Eight Compliance Report — Page ${i} of ${totalPages}`, margin, doc.internal.pageSize.getHeight() - 8);
+        doc.text('ACSC Essential Eight Maturity Model', pageWidth - margin, doc.internal.pageSize.getHeight() - 8, { align: 'right' });
+      }
+
+      doc.save(`essential-eight-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      alert('Failed to generate PDF: ' + err.message);
+    }
+    setGenerating(false);
+  }
+
+  return (<div className="mx-auto max-w-5xl px-4 py-8"><Link to="/audit" className="inline-flex items-center gap-1 text-sm text-cyber-muted hover:text-cyber-primary mb-6 transition-colors"><ArrowLeft size={14} /> Back</Link>
+    <div className="flex items-center justify-between mb-2"><h2 className="text-2xl font-bold text-cyber-text">Overall Compliance Report</h2><button onClick={generatePDF} disabled={generating} className="flex items-center gap-2 rounded-lg bg-cyber-primary/20 border border-cyber-primary/30 px-4 py-2 text-sm font-medium text-cyber-primary hover:bg-cyber-primary/30 disabled:opacity-50 transition-colors">{generating ? 'Generating...' : 'Download PDF'}</button></div>
+    <p className="text-cyber-muted text-sm mb-8">Compliance across all 8 Essential Eight controls by maturity level</p>
     <div className="glass-card rounded-xl p-6 mb-8 border-l-4 border-cyber-primary/30"><h3 className="text-lg font-bold text-cyber-text mb-4">Summary</h3><div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4"><div className="text-center"><div className="text-3xl font-bold text-cyber-primary">{overallPct}%</div><div className="text-xs text-cyber-muted">Overall</div></div><div className="text-center"><div className="text-3xl font-bold text-cyber-success">{totalCompliant}</div><div className="text-xs text-cyber-muted">Compliant</div></div><div className="text-center"><div className="text-3xl font-bold text-cyber-text">{totalReqs}</div><div className="text-xs text-cyber-muted">Assessed</div></div><div className="text-center"><div className="text-3xl font-bold text-cyber-secondary">{controlSummaries.filter(c => c.hasAudit).length}/8</div><div className="text-xs text-cyber-muted">Controls</div></div></div><div className="h-3 rounded-full bg-cyber-border overflow-hidden"><div className={`h-full rounded-full transition-all ${overallPct === 100 ? 'bg-cyber-success' : overallPct >= 50 ? 'bg-cyber-warning' : 'bg-cyber-danger'}`} style={{ width: `${overallPct}%` }} /></div></div>
     {ncControls.length > 0 && (
       <div className="mb-8">
