@@ -51,11 +51,12 @@ export function initDb() {
       UNIQUE(audit_id, requirement_id),
       FOREIGN KEY (audit_id) REFERENCES audits(id) ON DELETE CASCADE
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_audits_identifier_control_ml ON audits(identifier, control_id, maturity_level);
-    CREATE INDEX IF NOT EXISTS idx_audits_group ON audits(audit_group);
-    CREATE INDEX IF NOT EXISTS idx_evidence_audit ON evidence(audit_id);
-    CREATE INDEX IF NOT EXISTS idx_req_status_audit ON requirement_status(audit_id);
   `);
+  // Migrations for existing databases
+  try { db.exec("ALTER TABLE audits ADD COLUMN audit_group TEXT"); } catch {}
+  try { db.exec("DROP INDEX IF EXISTS idx_audits_identifier"); } catch {}
+  try { db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_audits_identifier_control_ml ON audits(identifier, control_id, maturity_level)"); } catch {}
+  try { db.exec("CREATE INDEX IF NOT EXISTS idx_audits_group ON audits(audit_group)"); } catch {}
   db.close();
 }
 
