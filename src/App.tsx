@@ -15,8 +15,8 @@ const APP_VERSION = '2.4.0';
 const iconMap = { Shield, Clock, FileCode, UserCheck, Lock, Monitor, KeyRound, Database };
 
 const WORKFLOW_CONTROLS = [
-  'patch_applications', 'application_control', 'restrict_macros', 'user_application_hardening',
-  'patch_operating_systems', 'multi_factor_authentication', 'restrict_admin_privileges', 'regular_backups',
+  'patch-applications', 'application-control', 'restrict-microsoft-office-macros', 'user-application-hardening',
+  'patch-operating-systems', 'multi-factor-authentication', 'restrict-administrative-privileges', 'regular-backups',
 ];
 
 async function apiFetch(path, opts) {
@@ -159,14 +159,16 @@ function AuditHome() {
     const group = groupedAudits.groups.find(g => g.groupId === groupId);
     if (!group) return;
     for (const item of group.items) await apiFetch('/audits/' + item.id, { method: 'DELETE' });
+    setLastAudit(null);
     setRefreshKey(k => k + 1);
   }
 
   async function deleteAllAudits() {
     if (!confirm('Delete ALL audits? This cannot be undone.')) return;
     await apiFetch('/audits', { method: 'DELETE' });
-    setRefreshKey(k => k + 1);
+    setLastAudit(null);
     setDeleteConfirm(null);
+    setRefreshKey(k => k + 1);
   }
 
   function handleLastAuditClick() {
