@@ -448,19 +448,97 @@ function RequirementAssessment({ requirement, status, evidence, onCompliant, onE
 function AuditReport({ auditId }) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
-  useEffect(() => { apiFetch('/audits/' + auditId + '/report').then(setReport).catch(console.error).finally(() => setLoading(false)); }, [auditId]);
-  if (loading) return <div className="p-8 text-cyber-muted">Loading...</div>;
-  if (!report) return <div className="p-8 text-cyber-danger">Failed</div>;
+  const [error, setError] = useState('');
+  useEffect(() => {
+    apiFetch('/audits/' + auditId + '/report')
+      .then(d => { setReport(d); setLoading(false); })
+      .catch(e => { setError(e.message); setLoading(false); });
+  }, [auditId]);
+  if (loading) return <div className="p-8 text-cyber-muted">Loading report...</div>;
+  if (error) return <div className="p-8 text-cyber-danger">Error: {error}</div>;
+  if (!report || !report.audit) return <div className="p-8 text-cyber-danger">No report data found</div>;
   const { audit, statuses, evidence, summary } = report;
   const strategy = strategies.find(s => s.id === audit.control_id);
   const maturity = strategy?.maturityLevels.find(m => m.level === audit.maturity_level);
   const reqs = maturity?.requirements || [];
-  const nc = statuses.filter(s => s.compliant === 0);
-  const c = statuses.filter(s => s.compliant === 1);
-  return (<div className="mx-auto max-w-4xl px-4 py-8"><Link to={'/audit' + (audit.audit_group ? '/workflow/' + audit.audit_group : '/' + auditId)} className="inline-flex items-center gap-1 text-sm text-cyber-muted hover:text-cyber-primary mb-6 transition-colors"><ArrowLeft size={14} /> Back</Link><div className="mb-8"><h2 className="text-2xl font-bold text-cyber-text mb-1">Compliance Report</h2><p className="text-sm text-cyber-muted">{strategy?.name} \u2014 {maturity?.title}</p><p className="text-xs text-cyber-muted">{audit.identifier} \u2022 {new Date(audit.created_at).toLocaleDateString()}</p></div><div className="glass-card rounded-xl p-6 mb-6"><h3 className="text-lg font-bold text-cyber-text mb-4">Summary</h3><div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4"><div className="text-center"><div className="text-2xl font-bold text-cyber-primary">{summary.compliancePercent}%</div><div className="text-xs text-cyber-muted">Compliance</div></div><div className="text-center"><div className="text-2xl font-bold text-cyber-success">{summary.compliant}</div><div className="text-xs text-cyber-muted">Compliant</div></div><div className="text-center"><div className="text-2xl font-bold text-cyber-danger">{summary.nonCompliant}</div><div className="text-xs text-cyber-muted">Non-Compliant</div></div><div className="text-center"><div className="text-2xl font-bold text-cyber-secondary">{summary.evidenceItems}</div><div className="text-xs text-cyber-muted">Evidence</div></div></div><div className="h-3 rounded-full bg-cyber-border overflow-hidden"><div className={"h-full rounded-full transition-all " + (summary.compliancePercent === 100 ? 'bg-cyber-success' : summary.compliancePercent >= 50 ? 'bg-cyber-warning' : 'bg-cyber-danger')} style={{ width: summary.compliancePercent + '%' }} /></div></div>
-    {nc.length > 0 && <div className="glass-card rounded-xl p-6 mb-6 border-l-4 border-cyber-danger/30"><h3 className="text-lg font-bold text-cyber-danger mb-4 flex items-center gap-2"><XCircle size={18} /> Non-Compliant ({nc.length})</h3><div className="space-y-4">{nc.map(ns => { const req = reqs.find(r => r.id === ns.requirement_id); if (!req) return null; return (<div key={ns.id} className="rounded-lg border border-cyber-danger/20 bg-cyber-danger/5 p-4"><div className="flex items-start gap-2 mb-2"><span className="rounded bg-cyber-danger/10 px-1.5 py-0.5 text-[9px] font-bold text-cyber-danger">{req.id.toUpperCase()}</span><p className="text-sm text-cyber-text flex-1">{req.text}</p></div>{ns.notes && <p className="text-xs text-cyber-muted mb-2 italic">{ns.notes}</p>}<div className="rounded bg-cyber-bg/50 p-3 mt-2"><p className="text-xs font-bold text-cyber-secondary mb-1">Recommendation:</p><p className="text-xs text-cyber-text">{req.implementation}</p></div></div>); })}</div></div>}
-    {c.length > 0 && <div className="glass-card rounded-xl p-6 mb-6 border-l-4 border-cyber-success/30"><h3 className="text-lg font-bold text-cyber-success mb-4 flex items-center gap-2"><CheckCircle size={18} /> Compliant ({c.length})</h3><div className="space-y-2">{c.map(cs => { const req = reqs.find(r => r.id === cs.requirement_id); if (!req) return null; return (<div key={cs.id} className="flex items-start gap-2 rounded-lg border border-cyber-success/10 bg-cyber-success/5 p-3"><CheckCircle size={14} className="text-cyber-success mt-0.5 shrink-0" /><div><span className="text-[9px] font-bold text-cyber-success">{req.id.toUpperCase()}</span><p className="text-xs text-cyber-text">{req.text}</p></div></div>); })}</div></div>}
-    {evidence.length > 0 && <div className="glass-card rounded-xl p-6"><h3 className="text-lg font-bold text-cyber-text mb-4">Evidence ({evidence.length})</h3><div className="space-y-2">{evidence.map(ev => (<div key={ev.id} className="flex items-center gap-3 rounded-lg border border-cyber-border p-2"><span className="rounded bg-cyber-bg px-1.5 py-0.5 text-[9px] font-medium text-cyber-muted uppercase">{ev.evidence_type}</span><span className="text-xs text-cyber-text flex-1 truncate">{ev.file_name || ev.description || '\u2014'}</span></div>))}</div></div>}</div>);
+  const nc = (statuses || []).filter(s => s.compliant === 0);
+  const c = (statuses || []).filter(s => s.compliant === 1);
+  return (
+    <div className="mx-auto max-w-4xl px-4 py-8">
+      <Link to={'/audit' + (audit.audit_group ? '/workflow/' + audit.audit_group : '/' + auditId)} className="inline-flex items-center gap-1 text-sm text-cyber-muted hover:text-cyber-primary mb-6 transition-colors"><ArrowLeft size={14} /> Back</Link>
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-cyber-text mb-1">Compliance Report</h2>
+        <p className="text-sm text-cyber-muted">{strategy?.name} — {maturity?.title}</p>
+        <p className="text-xs text-cyber-muted">{audit.identifier} • {new Date(audit.created_at).toLocaleDateString()}</p>
+      </div>
+      <div className="glass-card rounded-xl p-6 mb-6">
+        <h3 className="text-lg font-bold text-cyber-text mb-4">Summary</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+          <div className="text-center"><div className="text-2xl font-bold text-cyber-primary">{summary.compliancePercent}%</div><div className="text-xs text-cyber-muted">Compliance</div></div>
+          <div className="text-center"><div className="text-2xl font-bold text-cyber-success">{summary.compliant}</div><div className="text-xs text-cyber-muted">Compliant</div></div>
+          <div className="text-center"><div className="text-2xl font-bold text-cyber-danger">{summary.nonCompliant}</div><div className="text-xs text-cyber-muted">Non-Compliant</div></div>
+          <div className="text-center"><div className="text-2xl font-bold text-cyber-secondary">{summary.evidenceItems}</div><div className="text-xs text-cyber-muted">Evidence</div></div>
+        </div>
+        <div className="h-3 rounded-full bg-cyber-border overflow-hidden">
+          <div className={"h-full rounded-full transition-all " + (summary.compliancePercent === 100 ? 'bg-cyber-success' : summary.compliancePercent >= 50 ? 'bg-cyber-warning' : 'bg-cyber-danger')} style={{ width: summary.compliancePercent + '%' }} />
+        </div>
+      </div>
+      {nc.length > 0 && (
+        <div className="glass-card rounded-xl p-6 mb-6 border-l-4 border-cyber-danger/30">
+          <h3 className="text-lg font-bold text-cyber-danger mb-4 flex items-center gap-2"><XCircle size={18} /> Non-Compliant ({nc.length})</h3>
+          <div className="space-y-4">
+            {nc.map(ns => {
+              const req = reqs.find(r => r.id === ns.requirement_id);
+              if (!req) return null;
+              return (
+                <div key={ns.id} className="rounded-lg border border-cyber-danger/20 bg-cyber-danger/5 p-4">
+                  <div className="flex items-start gap-2 mb-2">
+                    <span className="rounded bg-cyber-danger/10 px-1.5 py-0.5 text-[9px] font-bold text-cyber-danger">{req.id.toUpperCase()}</span>
+                    <p className="text-sm text-cyber-text flex-1">{req.text}</p>
+                  </div>
+                  {ns.notes && <p className="text-xs text-cyber-muted mb-2 italic">{ns.notes}</p>}
+                  <div className="rounded bg-cyber-bg/50 p-3 mt-2">
+                    <p className="text-xs font-bold text-cyber-secondary mb-1">Recommendation:</p>
+                    <p className="text-xs text-cyber-text">{req.implementation}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {c.length > 0 && (
+        <div className="glass-card rounded-xl p-6 mb-6 border-l-4 border-cyber-success/30">
+          <h3 className="text-lg font-bold text-cyber-success mb-4 flex items-center gap-2"><CheckCircle size={18} /> Compliant ({c.length})</h3>
+          <div className="space-y-2">
+            {c.map(cs => {
+              const req = reqs.find(r => r.id === cs.requirement_id);
+              if (!req) return null;
+              return (
+                <div key={cs.id} className="flex items-start gap-2 rounded-lg border border-cyber-success/10 bg-cyber-success/5 p-3">
+                  <CheckCircle size={14} className="text-cyber-success mt-0.5 shrink-0" />
+                  <div><span className="text-[9px] font-bold text-cyber-success">{req.id.toUpperCase()}</span><p className="text-xs text-cyber-text">{req.text}</p></div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {(evidence || []).length > 0 && (
+        <div className="glass-card rounded-xl p-6">
+          <h3 className="text-lg font-bold text-cyber-text mb-4">Evidence ({(evidence || []).length})</h3>
+          <div className="space-y-2">
+            {(evidence || []).map(ev => (
+              <div key={ev.id} className="flex items-center gap-3 rounded-lg border border-cyber-border p-2">
+                <span className="rounded bg-cyber-bg px-1.5 py-0.5 text-[9px] font-medium text-cyber-muted uppercase">{ev.evidence_type}</span>
+                <span className="text-xs text-cyber-text flex-1 truncate">{ev.file_name || ev.description || '—'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function DynIcon({ name, className, size }) { const Icon = iconMap[name]; return Icon ? <Icon className={className} size={size} /> : null; }
