@@ -1,4 +1,4 @@
-import { initDb, createAudit, getAuditByIdentifier, getAuditById, getAllAudits, getAuditsSummary, updateAuditStatus, setRequirementStatus, getRequirementStatuses, addEvidence, getEvidenceForAudit, getEvidenceForRequirement, deleteEvidence, getAuditReport, deleteAudit, deleteAllAudits, getOverallComplianceReport, lockAudit, unlockAudit, getLastAudit } from "./database.js";
+import { initDb, createAudit, getAuditByIdentifier, getAuditById, getAllAudits, getAuditsSummary, updateAuditStatus, setRequirementStatus, getRequirementStatuses, addEvidence, getEvidenceForAudit, getEvidenceForRequirement, deleteEvidence, getAuditReport, deleteAudit, deleteAllAudits, getOverallComplianceReport, lockAudit, unlockAudit, getLastAudit, createAuditGroup, getAuditGroup, getAuditGroupProgress, getGroupByAuditId } from "./database.js";
 import { join } from "path";
 import { mkdirSync } from "fs";
 import { fileURLToPath } from "url";
@@ -54,6 +54,35 @@ const server = Bun.serve({
         const audit = createAudit(body.identifier, body.controlId, body.maturityLevel);
         if (audit.error) return errorResponse(audit.error, 409);
         return jsonResponse(audit, 201);
+      }
+
+      if (path === "/api/audits/group" && method === "POST") {
+        const body = await req.json();
+        if (!body.identifier || !body.controlIds || !Array.isArray(body.controlIds)) return errorResponse("identifier and controlIds array are required");
+        try {
+          const result = createAuditGroup(body.identifier, body.controlIds);
+          return jsonResponse(result, 201);
+        } catch (e) {
+          return errorResponse(e.message, 500);
+        }
+      }
+
+      if (path.match(/^\/api\/audits\/group\/[\w-]+$/) && method === "GET") {
+        const groupId = path.split("/").pop();
+        return jsonResponse(getAuditGroup(groupId));
+      }
+
+      if (path.match(/^\/api\/audits\/group\/[\w-]+\/progress$/) && method === "GET") {
+        const groupId = path.split("/")[4];
+        return jsonResponse(getAuditGroupProgress(groupId));
+      }
+
+      if (path === "/api/audits/group-by-audit" && method === "GET") {
+        const auditId = url.searchParams.get("auditId");
+        if (!auditId) return errorResponse("auditId is required");
+        const groupId = getGroupByAuditId(parseInt(auditId));
+        if (!groupId) return errorResponse("No group found", 404);
+        return jsonResponse({ groupId, progress: getAuditGroupProgress(groupId) });
       }
 
       if (path.match(/^\/api\/audits\/\d+$/) && method === "GET") {

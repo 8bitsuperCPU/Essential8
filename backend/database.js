@@ -16,7 +16,8 @@ export function initDb() {
     PRAGMA foreign_keys = ON;
     CREATE TABLE IF NOT EXISTS audits (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      identifier TEXT NOT NULL UNIQUE,
+      identifier TEXT NOT NULL,
+      audit_group TEXT,
       control_id TEXT NOT NULL,
       maturity_level INTEGER NOT NULL,
       status TEXT NOT NULL DEFAULT 'in_progress',
@@ -50,11 +51,62 @@ export function initDb() {
       UNIQUE(audit_id, requirement_id),
       FOREIGN KEY (audit_id) REFERENCES audits(id) ON DELETE CASCADE
     );
-    CREATE INDEX IF NOT EXISTS idx_audits_identifier ON audits(identifier);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_audits_identifier_control_ml ON audits(identifier, control_id, maturity_level);
+    CREATE INDEX IF NOT EXISTS idx_audits_group ON audits(audit_group);
     CREATE INDEX IF NOT EXISTS idx_evidence_audit ON evidence(audit_id);
     CREATE INDEX IF NOT EXISTS idx_req_status_audit ON requirement_status(audit_id);
   `);
   db.close();
+}
+
+export function createAuditGroup(identifier, controlIds) {
+  const db = getDb();
+  const groupId = crypto.randomUUID();
+  const maturityLevels = [1, 2, 3];
+  const created = [];
+  try {
+    for (const controlId of controlIds) {
+      for (const ml of maturityLevels) {
+        const auditId = `${identifier}_${controlId}_ML${ml}`;
+        db.prepare("INSERT OR IGNORE INTO audits (identifier, audit_group, control_id, maturity_level) VALUES (?, ?, ?, ?)").run(auditId, groupId, controlId, ml);
+        const row = db.prepare("SELECT * FROM audits WHERE identifier = ?").get(auditId);
+        if (row) created.push(row);
+      }
+    }
+    db.close();
+    return { groupId, audits: created };
+  } catch (e) {
+    db.close();
+    throw e;
+  }
+}
+
+export function getAuditGroup(groupId) {
+  const db = getDb();
+  const audits = db.prepare("SELECT * FROM audits WHERE audit_group = ? ORDER BY maturity_level, control_id").all(groupId);
+  db.close();
+  return audits;
+}
+
+export function getAuditGroupProgress(groupId) {
+  const db = getDb();
+  const audits = db.prepare(`
+    SELECT a.*,
+      (SELECT COUNT(*) FROM requirement_status rs WHERE rs.audit_id = a.id AND rs.compliant = 1) as compliant_count,
+      (SELECT COUNT(*) FROM requirement_status rs WHERE rs.audit_id = a.id) as total_requirements
+    FROM audits a
+    WHERE a.audit_group = ?
+    ORDER BY a.maturity_level, a.control_id
+  `).all(groupId);
+  db.close();
+  return audits;
+}
+
+export function getGroupByAuditId(auditId) {
+  const db = getDb();
+  const audit = db.prepare("SELECT audit_group FROM audits WHERE id = ?").get(auditId);
+  db.close();
+  return audit?.audit_group || null;
 }
 
 export function createAudit(identifier, controlId, maturityLevel) {
