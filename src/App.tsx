@@ -118,7 +118,7 @@ function AuditHome() {
 
   function refresh() {
     apiFetch('/audits/summary').then(setAudits).catch(() => {});
-    apiFetch('/audits/last').then(d => { if (d) setLastAudit(d); }).catch(() => {});
+    apiFetch('/audits/last').then(d => { setLastAudit(d || null); }).catch(() => { setLastAudit(null); });
   }
   useEffect(() => { refresh(); }, [refreshKey]);
 
@@ -207,7 +207,7 @@ function AuditHome() {
         </div>
       )}
 
-      {showNew && <NewAuditForm onCreated={(groupId) => { setRefreshKey(k => k + 1); setShowNew(false); navigate('/audit/workflow/' + groupId); }} />}
+      {showNew && <NewAuditForm onCreated={(groupId) => { setRefreshKey(k => k + 1); setShowNew(false); window.open('#/audit/workflow/' + groupId, '_blank', 'width=900,height=700'); }} />}
 
       {groupedAudits.groups.length > 0 && (
         <div className="mb-8">
@@ -287,33 +287,37 @@ function NewAuditForm({ onCreated }) {
    ═══════════════════════════════════════════════════════════════ */
 function AuditWorkflowPage() {
   const { groupId } = useParams();
+  const navigate = useNavigate();
   const [groupAudits, setGroupAudits] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const loadGroup = useCallback(async () => {
     try {
       const data = await apiFetch('/audits/group/' + groupId + '/progress');
+      if (!data || !data.length) { setError('Audit group not found or empty'); setLoading(false); return; }
       setGroupAudits(data);
       const idx = data.findIndex(a => a.status !== 'completed');
       setCurrentIndex(idx >= 0 ? idx : data.length - 1);
-    } catch (err) { console.error(err); }
+    } catch (err) { setError(err.message); }
     setLoading(false);
   }, [groupId]);
 
   useEffect(() => { loadGroup(); }, [loadGroup]);
 
   useEffect(() => {
-    const handler = () => { if (window.opener) window.opener.postMessage({ type: 'audit-workflow-closed' }, '*'); };
+    const handler = () => { try { window.opener && window.opener.postMessage({ type: 'audit-workflow-closed' }, '*'); } catch {} };
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
   }, []);
 
-  if (loading) return <div className="p-8 text-cyber-muted">Loading...</div>;
-  if (!groupAudits.length) return <div className="p-8 text-cyber-danger">Audit group not found.</div>;
+  if (loading) return <div className="min-h-screen bg-cyber-bg text-cyber-text flex items-center justify-center"><div className="text-cyber-muted">Loading assessment...</div></div>;
+  if (error) return <div className="min-h-screen bg-cyber-bg text-cyber-text flex items-center justify-center"><div className="text-cyber-danger">{error}<br /><button onClick={() => window.close()} className="mt-4 text-xs text-cyber-muted border border-cyber-border px-3 py-1 rounded">Close</button></div></div>;
+  if (!groupAudits.length) return <div className="min-h-screen bg-cyber-bg text-cyber-text flex items-center justify-center"><div className="text-cyber-danger">No audits in group</div></div>;
 
   const currentAudit = groupAudits[currentIndex];
-  if (!currentAudit) return <div className="p-8 text-cyber-muted">No current audit.</div>;
+  if (!currentAudit) return <div className="min-h-screen bg-cyber-bg text-cyber-text flex items-center justify-center"><div className="text-cyber-muted">No current audit</div></div>;
 
   const strategy = strategies.find(s => s.id === currentAudit.control_id);
   const maturity = strategy?.maturityLevels.find(m => m.level === currentAudit.maturity_level);
@@ -326,7 +330,7 @@ function AuditWorkflowPage() {
       <div className="mx-auto max-w-4xl px-4 py-6">
         <div className="flex items-center justify-between mb-6">
           <div><h2 className="text-xl font-bold text-cyber-text">Essential Eight Assessment</h2><p className="text-xs text-cyber-muted mt-0.5">{completedSteps}/{totalSteps} assessments complete</p></div>
-          <button onClick={() => window.close()} className="text-xs text-cyber-muted hover:text-cyber-text px-3 py-1.5 rounded border border-cyber-border hover:border-cyber-primary/40 transition-colors">Close Window</button>
+          <button onClick={() => { try { window.close(); } catch {} navigate('/audit'); }} className="text-xs text-cyber-muted hover:text-cyber-text px-3 py-1.5 rounded border border-cyber-border hover:border-cyber-primary/40 transition-colors">Close Window</button>
         </div>
         <div className="glass-card rounded-xl p-4 mb-6">
           <div className="flex items-center gap-2 mb-3">
@@ -336,18 +340,25 @@ function AuditWorkflowPage() {
               return (<div key={ml} className="flex items-center gap-1"><span className={"text-xs font-bold " + (currentAudit.maturity_level === ml ? 'text-cyber-primary' : 'text-cyber-muted')}>ML{ml}</span><div className="h-1.5 w-20 rounded-full bg-cyber-border overflow-hidden"><div className={"h-full rounded-full " + (mlDone === mlAudits.length ? 'bg-cyber-success' : 'bg-cyber-primary')} style={{ width: (mlAudits.length > 0 ? (mlDone / mlAudits.length) * 100 : 0) + '%' }} /></div><span className="text-[9px] text-cyber-muted">{mlDone}/{mlAudits.length}</span></div>);
             })}
           </div>
-          <div className="flex gap-0.5">{groupAudits.map((a, i) => (<button key={i} onClick={() => setCurrentIndex(i)} className={"h-2 flex-1 rounded-full transition-colors " + (i === currentIndex ? 'bg-cyber-primary' : a.status === 'completed' ? 'bg-cyber-success' : 'bg-cyber-border')} />))}</div>
+          <div className="flex gap-0.5">{groupAudits.map((a, i) => (<button key={i} onClick={() => setCurrentIndex(i)} className={"h-2 flex-1 rounded-full transition-colors " + (i === currentIndex ? 'bg-cyber-primary' : a.status === 'completed' ? 'bg-cyber-success' : 'bg-cyber-border')} title={(strategies.find(s => s.id === a.control_id)?.name || a.control_id) + ' ML' + a.maturity_level} />))}</div>
         </div>
         {allComplete ? (
           <div className="glass-card rounded-xl p-8 text-center border-l-4 border-cyber-success/30">
             <CheckCircle className="text-cyber-success mx-auto mb-4" size={48} />
             <h3 className="text-xl font-bold text-cyber-success mb-2">All Assessments Complete!</h3>
             <p className="text-sm text-cyber-muted mb-6">All {totalSteps} assessments across ML1, ML2, and ML3 are done.</p>
-            <button onClick={() => window.close()} className="rounded-lg bg-cyber-success/20 border border-cyber-success/30 px-6 py-2.5 text-sm font-medium text-cyber-success hover:bg-cyber-success/30 transition-colors">Close & Return to Catalogue</button>
+            <button onClick={() => { try { window.close(); } catch {} navigate('/audit'); }} className="rounded-lg bg-cyber-success/20 border border-cyber-success/30 px-6 py-2.5 text-sm font-medium text-cyber-success hover:bg-cyber-success/30 transition-colors">Close & Return to Catalogue</button>
           </div>
-        ) : maturity ? (
+        ) : maturity && strategy ? (
           <AuditWorkflowSingle audit={currentAudit} strategy={strategy} maturity={maturity} onComplete={loadGroup} onPrev={() => setCurrentIndex(Math.max(0, currentIndex - 1))} onNext={() => setCurrentIndex(Math.min(totalSteps - 1, currentIndex + 1))} canPrev={currentIndex > 0} canNext={currentIndex < totalSteps - 1} />
-        ) : null}
+        ) : (
+          <div className="glass-card rounded-xl p-8 text-center border-l-4 border-cyber-warning/30">
+            <AlertTriangle className="text-cyber-warning mx-auto mb-4" size={48} />
+            <h3 className="text-lg font-bold text-cyber-warning mb-2">Unable to Load Assessment</h3>
+            <p className="text-sm text-cyber-muted mb-4">Control: {currentAudit.control_id} (ML{currentAudit.maturity_level})</p>
+            <p className="text-xs text-cyber-muted">This control may not have data defined in the application.</p>
+          </div>
+        )}
       </div>
     </div>
   );
