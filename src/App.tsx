@@ -4,7 +4,7 @@ import {
   Search, Shield, Clock, FileCode, UserCheck, Lock, Monitor, KeyRound,
   Moon, Sun, ChevronRight, ArrowLeft, X, ExternalLink, CheckCircle, AlertTriangle, Info, Database,
   Target, Wrench, Cpu, ClipboardCheck, FileUp, Trash2, Check, XCircle, AlertCircle, Palette,
-  BarChart3, Trash, Lock as LockIcon, Unlock, Play, FileText
+  BarChart3, Trash, Lock as LockIcon, Unlock, Play, FileText, Waves
 } from 'lucide-react';
 import Fuse from 'fuse.js';
 import { strategies, type Requirement, type MaturityLevelData, type MitigationStrategy } from './data';
@@ -40,7 +40,7 @@ function useSearch() {
 function ThemeSwitcher() {
   const { themeName, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
-  const icons: Record<ThemeName, React.ReactNode> = { cyber: <Shield size={14} />, spotify: <Moon size={14} />, light: <Sun size={14} /> };
+  const icons: Record<ThemeName, React.ReactNode> = { cyber: <Shield size={14} />, spotify: <Moon size={14} />, light: <Sun size={14} />, ocean: <Waves size={14} />, paper: <FileText size={14} /> };
   return (<div className="relative"><button onClick={() => setOpen(!open)} className="rounded-lg border border-cyber-border bg-cyber-card p-2 text-cyber-muted hover:border-cyber-primary/40 hover:text-cyber-text transition-colors"><Palette size={16} /></button>{open && (<><div className="fixed inset-0 z-40" onClick={() => setOpen(false)} /><div className="absolute right-0 top-full mt-2 z-50 rounded-lg border border-cyber-border bg-cyber-card py-1 min-w-[140px] shadow-xl">{Object.values(themes).map(t => (<button key={t.name} onClick={() => { setTheme(t.name); setOpen(false); }} className={`flex w-full items-center gap-2 px-3 py-2 text-xs transition-colors ${themeName === t.name ? 'text-cyber-primary bg-cyber-primary/10' : 'text-cyber-muted hover:text-cyber-text hover:bg-cyber-border/30'}`}>{icons[t.name]}{t.label}{themeName === t.name && <Check size={12} className="ml-auto" />}</button>))}</div></>)}</div>);
 }
 

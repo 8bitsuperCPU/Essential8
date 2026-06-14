@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
-export type ThemeName = 'cyber' | 'spotify' | 'light';
+export type ThemeName = 'cyber' | 'spotify' | 'light' | 'ocean' | 'paper';
 
 export interface Theme {
   name: ThemeName;
@@ -68,6 +68,38 @@ export const themes: Record<ThemeName, Theme> = {
       muted: '#5F6368',
     },
   },
+  ocean: {
+    name: 'ocean',
+    label: 'Ocean',
+    colors: {
+      bg: '#0A1628',
+      card: '#111D32',
+      border: '#1A3050',
+      primary: '#29B6F6',
+      secondary: '#00BFA5',
+      success: '#66BB6A',
+      warning: '#FFA726',
+      danger: '#EF5350',
+      text: '#B0C4DE',
+      muted: '#6E8B9E',
+    },
+  },
+  paper: {
+    name: 'paper',
+    label: 'Paper',
+    colors: {
+      bg: '#EDE8E0',
+      card: '#F5F0E8',
+      border: '#D4CFC7',
+      primary: '#5C6BC0',
+      secondary: '#8D6E63',
+      success: '#43A047',
+      warning: '#E68A00',
+      danger: '#D32F2F',
+      text: '#2C2C2C',
+      muted: '#6D6660',
+    },
+  },
 };
 
 const STORAGE_KEY = 'e8-theme';
@@ -112,6 +144,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // Update body background
     document.body.style.backgroundColor = c.bg;
     document.body.style.color = c.text;
+
+    // Set data-theme attribute for CSS selectors
+    document.documentElement.setAttribute('data-theme', themeName);
 
     // Update meta theme-color for mobile browsers
     const meta = document.querySelector('meta[name="theme-color"]');

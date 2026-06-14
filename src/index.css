@@ -93,18 +93,26 @@ body {
   backdrop-filter: blur(4px);
 }
 
-/* Light theme overrides for better readability */
-[data-theme="light"] .glass-card {
+/* Light/Paper theme overrides for better readability */
+[data-theme="light"] .glass-card,
+[data-theme="paper"] .glass-card {
   background: var(--color-cyber-card);
   border: 1px solid var(--color-cyber-border);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-[data-theme="light"] .glass-card:hover {
+[data-theme="light"] .glass-card:hover,
+[data-theme="paper"] .glass-card:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   border-color: var(--color-cyber-primary);
 }
 
-[data-theme="light"] .modal-overlay {
+[data-theme="light"] .modal-overlay,
+[data-theme="paper"] .modal-overlay {
   background: rgba(0, 0, 0, 0.4);
+}
+
+/* Paper theme: warm subtle background */
+[data-theme="paper"] body {
+  background-image: none;
 }
