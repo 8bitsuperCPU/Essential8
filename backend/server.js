@@ -1,4 +1,4 @@
-import { initDb, createAudit, getAuditByIdentifier, getAuditById, getAllAudits, getAuditsSummary, updateAuditStatus, setRequirementStatus, getRequirementStatuses, addEvidence, getEvidenceForAudit, getEvidenceForRequirement, deleteEvidence, getAuditReport, deleteAudit, deleteAllAudits, getOverallComplianceReport } from "./database.js";
+import { initDb, createAudit, getAuditByIdentifier, getAuditById, getAllAudits, getAuditsSummary, updateAuditStatus, setRequirementStatus, getRequirementStatuses, addEvidence, getEvidenceForAudit, getEvidenceForRequirement, deleteEvidence, getAuditReport, deleteAudit, deleteAllAudits, getOverallComplianceReport, lockAudit, unlockAudit, getLastAudit } from "./database.js";
 import { join } from "path";
 import { mkdirSync } from "fs";
 import { fileURLToPath } from "url";
@@ -128,6 +128,35 @@ const server = Bun.serve({
       // --- Delete All Audits ---
       if (path === "/api/audits" && method === "DELETE") {
         return jsonResponse(deleteAllAudits());
+      }
+
+      // --- Lock Audit ---
+      if (path.match(/^\/api\/audits\/\d+\/lock$/) && method === "PUT") {
+        const id = parseInt(path.split("/")[3]);
+        const body = await req.json();
+        if (!body.password) return errorResponse("password is required");
+        const passwordHash = await Bun.password.hash(body.password);
+        return jsonResponse(lockAudit(id, passwordHash));
+      }
+
+      // --- Unlock Audit ---
+      if (path.match(/^\/api\/audits\/\d+\/unlock$/) && method === "PUT") {
+        const id = parseInt(path.split("/")[3]);
+        const body = await req.json();
+        if (!body.password) return errorResponse("password is required");
+        // Get stored hash first
+        const db = getDb();
+        const audit = db.prepare("SELECT password_hash FROM audits WHERE id = ?").get(id);
+        db.close();
+        if (!audit) return errorResponse("Audit not found", 404);
+        const valid = await Bun.password.verify(body.password, audit.password_hash);
+        if (!valid) return errorResponse("Invalid password", 401);
+        return jsonResponse(unlockAudit(id, audit.password_hash));
+      }
+
+      // --- Get Last Audit ---
+      if (path === "/api/audits/last" && method === "GET") {
+        return jsonResponse(getLastAudit());
       }
 
       // --- Individual Audit Report ---

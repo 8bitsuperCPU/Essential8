@@ -4,18 +4,15 @@ import {
   Search, Shield, Clock, FileCode, UserCheck, Lock, Monitor, KeyRound,
   Moon, Sun, ChevronRight, ArrowLeft, X, ExternalLink, CheckCircle, AlertTriangle, Info, Database,
   Target, Wrench, Cpu, ClipboardCheck, FileUp, Trash2, Check, XCircle, AlertCircle, Palette,
-  BarChart3, Trash
+  BarChart3, Trash, Lock as LockIcon, Unlock, Play, FileText
 } from 'lucide-react';
 import Fuse from 'fuse.js';
 import { strategies, type Requirement, type MaturityLevelData, type MitigationStrategy } from './data';
 import { ThemeProvider, useTheme, themes, type ThemeName } from './ThemeContext';
 
 const API = '/api';
-const APP_VERSION = '1.4.0';
-
-const iconMap: Record<string, React.ComponentType<{ className?: string; size?: number }>> = {
-  Shield, Clock, FileCode, UserCheck, Lock, Monitor, KeyRound, Database
-};
+const APP_VERSION = '2.0.0';
+const iconMap: Record<string, React.ComponentType<{ className?: string; size?: number }>> = { Shield, Clock, FileCode, UserCheck, Lock, Monitor, KeyRound, Database };
 
 async function apiFetch(path, opts = {}) {
   const isFormData = opts.body instanceof FormData;
@@ -32,11 +29,7 @@ function useSearch() {
     const items = [];
     strategies.forEach((s) => {
       items.push({ type: 'strategy', strategyId: s.id, strategyName: s.name, title: s.name, text: s.description });
-      s.maturityLevels.forEach((ml) => {
-        ml.requirements.forEach((req) => {
-          items.push({ type: 'requirement', strategyId: s.id, strategyName: s.name, maturityLevel: ml.level, title: `${s.name} — ML${ml.level}`, text: req.text, reqId: req.id });
-        });
-      });
+      s.maturityLevels.forEach((ml) => { ml.requirements.forEach((req) => { items.push({ type: 'requirement', strategyId: s.id, strategyName: s.name, maturityLevel: ml.level, title: `${s.name} — ML${ml.level}`, text: req.text, reqId: req.id }); }); });
     });
     return new Fuse(items, { keys: ['title', 'text', 'strategyName'], threshold: 0.3 });
   }, []);
@@ -47,57 +40,20 @@ function useSearch() {
 function ThemeSwitcher() {
   const { themeName, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
-  const themeIcons: Record<ThemeName, React.ReactNode> = { cyber: <Shield size={14} />, spotify: <Moon size={14} />, light: <Sun size={14} /> };
-  return (
-    <div className="relative">
-      <button onClick={() => setOpen(!open)} className="rounded-lg border border-cyber-border bg-cyber-card p-2 text-cyber-muted hover:border-cyber-primary/40 hover:text-cyber-text transition-colors" title="Change theme"><Palette size={16} /></button>
-      {open && (<><div className="fixed inset-0 z-40" onClick={() => setOpen(false)} /><div className="absolute right-0 top-full mt-2 z-50 rounded-lg border border-cyber-border bg-cyber-card py-1 min-w-[140px] shadow-xl">
-        {Object.values(themes).map(t => (<button key={t.name} onClick={() => { setTheme(t.name); setOpen(false); }} className={`flex w-full items-center gap-2 px-3 py-2 text-xs transition-colors ${themeName === t.name ? 'text-cyber-primary bg-cyber-primary/10' : 'text-cyber-muted hover:text-cyber-text hover:bg-cyber-border/30'}`}>{themeIcons[t.name]}{t.label}{themeName === t.name && <Check size={12} className="ml-auto" />}</button>))}
-      </div></>)}
-    </div>
-  );
+  const icons: Record<ThemeName, React.ReactNode> = { cyber: <Shield size={14} />, spotify: <Moon size={14} />, light: <Sun size={14} /> };
+  return (<div className="relative"><button onClick={() => setOpen(!open)} className="rounded-lg border border-cyber-border bg-cyber-card p-2 text-cyber-muted hover:border-cyber-primary/40 hover:text-cyber-text transition-colors"><Palette size={16} /></button>{open && (<><div className="fixed inset-0 z-40" onClick={() => setOpen(false)} /><div className="absolute right-0 top-full mt-2 z-50 rounded-lg border border-cyber-border bg-cyber-card py-1 min-w-[140px] shadow-xl">{Object.values(themes).map(t => (<button key={t.name} onClick={() => { setTheme(t.name); setOpen(false); }} className={`flex w-full items-center gap-2 px-3 py-2 text-xs transition-colors ${themeName === t.name ? 'text-cyber-primary bg-cyber-primary/10' : 'text-cyber-muted hover:text-cyber-text hover:bg-cyber-border/30'}`}>{icons[t.name]}{t.label}{themeName === t.name && <Check size={12} className="ml-auto" />}</button>))}</div></>)}</div>);
 }
 
 function Header({ onSearchClick }) {
-  return (
-    <header className="sticky top-0 z-40 border-b border-cyber-border bg-cyber-bg/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-        <Link to="/" className="flex items-center gap-3 group">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyber-primary/10 border border-cyber-primary/30 group-hover:bg-cyber-primary/20 transition-colors"><Shield className="text-cyber-primary" size={20} /></div>
-          <div><h1 className="text-lg font-bold text-cyber-text leading-tight">Essential Eight</h1><p className="text-[10px] text-cyber-muted uppercase tracking-widest">ACSC Maturity Model</p></div>
-        </Link>
-        <div className="flex items-center gap-2">
-          <Link to="/audit" className="flex items-center gap-2 rounded-lg border border-cyber-secondary/30 bg-cyber-secondary/10 px-3 py-2 text-sm text-cyber-secondary hover:bg-cyber-secondary/20 transition-colors"><ClipboardCheck size={16} /><span className="hidden sm:inline">Audit</span></Link>
-          <button onClick={onSearchClick} className="flex items-center gap-2 rounded-lg border border-cyber-border bg-cyber-card px-3 py-2 text-sm text-cyber-muted hover:border-cyber-primary/40 hover:text-cyber-text transition-colors"><Search size={16} /><span className="hidden sm:inline">Search</span><kbd className="hidden sm:inline rounded bg-cyber-bg px-1.5 py-0.5 text-[10px] text-cyber-muted">⌘K</kbd></button>
-          <ThemeSwitcher />
-        </div>
-      </div>
-    </header>
-  );
+  return (<header className="sticky top-0 z-40 border-b border-cyber-border bg-cyber-bg/80 backdrop-blur-md"><div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3"><Link to="/" className="flex items-center gap-3 group"><div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyber-primary/10 border border-cyber-primary/30 group-hover:bg-cyber-primary/20 transition-colors"><Shield className="text-cyber-primary" size={20} /></div><div><h1 className="text-lg font-bold text-cyber-text leading-tight">Essential Eight</h1><p className="text-[10px] text-cyber-muted uppercase tracking-widest">ACSC Maturity Model</p></div></Link><div className="flex items-center gap-2"><Link to="/audit" className="flex items-center gap-2 rounded-lg border border-cyber-secondary/30 bg-cyber-secondary/10 px-3 py-2 text-sm text-cyber-secondary hover:bg-cyber-secondary/20 transition-colors"><ClipboardCheck size={16} /><span className="hidden sm:inline">Audit</span></Link><button onClick={onSearchClick} className="flex items-center gap-2 rounded-lg border border-cyber-border bg-cyber-card px-3 py-2 text-sm text-cyber-muted hover:border-cyber-primary/40 hover:text-cyber-text transition-colors"><Search size={16} /><span className="hidden sm:inline">Search</span></button><ThemeSwitcher /></div></div></header>);
 }
 
 function SearchModal({ query, setQuery, results, onClose }) {
-  return (
-    <div className="fixed inset-0 z-50 modal-overlay flex items-start justify-center pt-[10vh]" onClick={onClose}>
-      <div className="w-full max-w-2xl mx-4 rounded-xl border border-cyber-border bg-cyber-card shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center gap-3 border-b border-cyber-border px-4 py-3"><Search className="text-cyber-primary" size={20} /><input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search strategies, requirements..." className="flex-1 bg-transparent text-cyber-text placeholder-cyber-muted outline-none text-sm" /><button onClick={onClose} className="text-cyber-muted hover:text-cyber-text"><X size={18} /></button></div>
-        <div className="max-h-[60vh] overflow-y-auto p-2">
-          {query.length < 2 && <p className="px-3 py-8 text-center text-sm text-cyber-muted">Type at least 2 characters to search...</p>}
-          {query.length >= 2 && results.length === 0 && <p className="px-3 py-8 text-center text-sm text-cyber-muted">No results found for &ldquo;{query}&rdquo;</p>}
-          {results.map((r, i) => (<Link key={i} to={r.type === 'strategy' ? `/strategy/${r.strategyId}` : `/strategy/${r.strategyId}/maturity/${r.maturityLevel}?req=${r.reqId}`} onClick={onClose} className="flex items-start gap-3 rounded-lg px-3 py-3 hover:bg-cyber-primary/5 transition-colors"><div className={`mt-0.5 rounded px-2 py-0.5 text-[10px] font-bold uppercase ${r.type === 'strategy' ? 'bg-cyber-secondary/20 text-cyber-secondary' : 'bg-cyber-primary/20 text-cyber-primary'}`}>{r.type === 'strategy' ? 'Strategy' : `ML${r.maturityLevel}`}</div><div className="flex-1 min-w-0"><p className="text-sm font-medium text-cyber-text truncate">{r.title}</p><p className="text-xs text-cyber-muted truncate">{r.strategyName} — {r.text}</p></div><ChevronRight size={14} className="mt-1 text-cyber-muted shrink-0" /></Link>))}
-        </div>
-      </div>
-    </div>
-  );
+  return (<div className="fixed inset-0 z-50 modal-overlay flex items-start justify-center pt-[10vh]" onClick={onClose}><div className="w-full max-w-2xl mx-4 rounded-xl border border-cyber-border bg-cyber-card shadow-2xl" onClick={e => e.stopPropagation()}><div className="flex items-center gap-3 border-b border-cyber-border px-4 py-3"><Search className="text-cyber-primary" size={20} /><input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search..." className="flex-1 bg-transparent text-cyber-text placeholder-cyber-muted outline-none text-sm" /><button onClick={onClose} className="text-cyber-muted hover:text-cyber-text"><X size={18} /></button></div><div className="max-h-[60vh] overflow-y-auto p-2">{query.length < 2 && <p className="px-3 py-8 text-center text-sm text-cyber-muted">Type at least 2 characters...</p>}{query.length >= 2 && results.length === 0 && <p className="px-3 py-8 text-center text-sm text-cyber-muted">No results</p>}{results.map((r, i) => (<Link key={i} to={r.type === 'strategy' ? `/strategy/${r.strategyId}` : `/strategy/${r.strategyId}/maturity/${r.maturityLevel}?req=${r.reqId}`} onClick={onClose} className="flex items-start gap-3 rounded-lg px-3 py-3 hover:bg-cyber-primary/5 transition-colors"><div className={`mt-0.5 rounded px-2 py-0.5 text-[10px] font-bold uppercase ${r.type === 'strategy' ? 'bg-cyber-secondary/20 text-cyber-secondary' : 'bg-cyber-primary/20 text-cyber-primary'}`}>{r.type === 'strategy' ? 'Strategy' : `ML${r.maturityLevel}`}</div><div className="flex-1 min-w-0"><p className="text-sm font-medium text-cyber-text truncate">{r.title}</p><p className="text-xs text-cyber-muted truncate">{r.strategyName} — {r.text}</p></div><ChevronRight size={14} className="mt-1 text-cyber-muted shrink-0" /></Link>))}</div></div></div>);
 }
 
 function Dashboard() {
-  return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
-      <div className="mb-8"><h2 className="text-2xl font-bold text-cyber-text mb-2">Essential Eight Maturity Model</h2><p className="text-cyber-muted text-sm max-w-3xl mb-2">The ACSC Essential Eight is a set of prioritised mitigation strategies to help organisations protect against cyber threats.</p></div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">{strategies.map((s, i) => <StrategyTile key={s.id} strategy={s} index={i} />)}</div>
-    </div>
-  );
+  return (<div className="mx-auto max-w-7xl px-4 py-8"><div className="mb-8"><h2 className="text-2xl font-bold text-cyber-text mb-2">Essential Eight Maturity Model</h2><p className="text-cyber-muted text-sm max-w-3xl mb-2">The ACSC Essential Eight is a set of prioritised mitigation strategies to help organisations protect against cyber threats.</p></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">{strategies.map((s, i) => <StrategyTile key={s.id} strategy={s} index={i} />)}</div></div>);
 }
 
 function StrategyTile({ strategy, index }) {
@@ -139,87 +95,157 @@ function MaturityView() {
   const maturity = strategy?.maturityLevels.find(m => m.level === Number(level));
   const [selectedReq, setSelectedReq] = useState(null);
   if (!strategy || !maturity) return <Navigate to="/" replace />;
-  return (<div className="mx-auto max-w-7xl px-4 py-8"><Link to={`/strategy/${strategyId}`} className="inline-flex items-center gap-1 text-sm text-cyber-muted hover:text-cyber-primary mb-6 transition-colors"><ArrowLeft size={14} /> Back</Link><div className="mb-8"><h2 className="text-2xl font-bold text-cyber-text mb-1">{strategy.name}</h2><p className="text-cyber-primary font-medium">{maturity.title}</p></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{maturity.requirements.map((req, i) => (<button key={req.id} onClick={() => setSelectedReq(req)} className="glass-card rounded-xl p-5 text-left group hover:scale-[1.02] hover:border-cyber-primary/40 transition-all animate-fade-in-up" style={{ animationDelay: `${i * 40}ms` }}><div className="flex items-start justify-between mb-3"><span className="rounded bg-cyber-primary/10 px-2 py-0.5 text-[10px] font-bold text-cyber-primary">{req.id.toUpperCase()}</span><ChevronRight size={14} className="text-cyber-muted group-hover:text-cyber-primary transition-colors mt-0.5" /></div><p className="text-sm text-cyber-text leading-relaxed line-clamp-3">{req.text}</p><div className="mt-3 flex items-center gap-1 text-[10px] text-cyber-muted"><Target size={10} /> Click for guidance</div></button>))}</div>{selectedReq && <RequirementModal requirement={selectedReq} strategyName={strategy.name} maturityTitle={maturity.title} onClose={() => setSelectedReq(null)} />}</div>);
+  return (<div className="mx-auto max-w-7xl px-4 py-8"><Link to={`/strategy/${strategyId}`} className="inline-flex items-center gap-1 text-sm text-cyber-muted hover:text-cyber-primary mb-6 transition-colors"><ArrowLeft size={14} /> Back</Link><div className="mb-8"><h2 className="text-2xl font-bold text-cyber-text mb-1">{strategy.name}</h2><p className="text-cyber-primary font-medium">{maturity.title}</p></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{maturity.requirements.map((req, i) => (<button key={req.id} onClick={() => setSelectedReq(req)} className="glass-card rounded-xl p-5 text-left group hover:scale-[1.02] hover:border-cyber-primary/40 transition-all animate-fade-in-up" style={{ animationDelay: `${i * 40}ms` }}><div className="flex items-start justify-between mb-3"><span className="rounded bg-cyber-primary/10 px-2 py-0.5 text-[10px] font-bold text-cyber-primary">{req.id.toUpperCase()}</span><ChevronRight size={14} className="text-cyber-muted group-hover:text-cyber-primary transition-colors mt-0.5" /></div><p className="text-sm text-cyber-text leading-relaxed line-clamp-3">{req.text}</p></button>))}</div>{selectedReq && <RequirementModal requirement={selectedReq} strategyName={strategy.name} maturityTitle={maturity.title} onClose={() => setSelectedReq(null)} />}</div>);
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   AUDIT HOME
+   AUDIT HOME — New multi-control workflow
    ═══════════════════════════════════════════════════════════════ */
 function AuditHome() {
-  const [identifier, setIdentifier] = useState('');
-  const [existingAudit, setExistingAudit] = useState(null);
+  const [catalogue, setCatalogue] = useState('');
+  const [foundAudit, setFoundAudit] = useState(null);
   const [error, setError] = useState('');
-  const [showNew, setShowNew] = useState(false);
   const [audits, setAudits] = useState([]);
+  const [lastAudit, setLastAudit] = useState(null);
+  const [showNew, setShowNew] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  function refresh() { apiFetch('/audits/summary').then(setAudits).catch(() => {}); }
-  useEffect(() => { refresh(); }, []);
+  function refresh() { apiFetch('/audits/summary').then(setAudits).catch(() => {}); apiFetch('/audits/last').then(setLastAudit).catch(() => {}); }
+  useEffect(() => { refresh(); }, [refreshKey]);
 
-  async function lookupIdentifier() {
-    if (!identifier.trim()) { setError('Please enter an identifier'); return; }
+  async function lookupCatalogue() {
+    if (!catalogue.trim()) { setError('Please enter an audit name'); return; }
     setError('');
-    try { const a = await apiFetch(`/audits?identifier=${encodeURIComponent(identifier.trim())}`); setExistingAudit(a); setShowNew(false); }
-    catch { setExistingAudit(null); setShowNew(true); }
+    try { const a = await apiFetch(`/audits?identifier=${encodeURIComponent(catalogue.trim())}`); setFoundAudit(a); setShowNew(false); }
+    catch { setFoundAudit(null); setShowNew(true); }
   }
 
   async function deleteAudit(id) {
-    if (!confirm('Delete this audit and all its evidence? This cannot be undone.')) return;
+    if (!confirm('Delete this audit and all evidence?')) return;
     await apiFetch(`/audits/${id}`, { method: 'DELETE' });
-    setAudits(prev => prev.filter(a => a.id !== id));
-    if (existingAudit?.id === id) setExistingAudit(null);
-    setDeleteConfirm(null);
+    setRefreshKey(k => k + 1);
+    if (foundAudit?.id === id) setFoundAudit(null);
   }
 
   async function deleteAllAudits() {
-    if (!confirm('Delete ALL audits and evidence? This cannot be undone.')) return;
+    if (!confirm('Delete ALL audits? This cannot be undone.')) return;
     await apiFetch('/audits', { method: 'DELETE' });
-    setAudits([]);
-    setExistingAudit(null);
+    setRefreshKey(k => k + 1);
+    setFoundAudit(null);
     setDeleteConfirm(null);
+  }
+
+  function handleLastAuditClick() {
+    if (!lastAudit) return;
+    if (lastAudit.status === 'completed') {
+      window.location.href = `/audit/${lastAudit.id}/report`;
+    } else {
+      window.location.href = `/audit/${lastAudit.id}`;
+    }
   }
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       <Link to="/" className="inline-flex items-center gap-1 text-sm text-cyber-muted hover:text-cyber-primary mb-6 transition-colors"><ArrowLeft size={14} /> Back</Link>
-      <div className="flex items-center justify-between mb-2"><h2 className="text-2xl font-bold text-cyber-text">Compliance Audit</h2><Link to="/audit/overall-report" className="flex items-center gap-2 rounded-lg border border-cyber-primary/30 bg-cyber-primary/10 px-3 py-2 text-sm text-cyber-primary hover:bg-cyber-primary/20 transition-colors"><BarChart3 size={16} />Overall Report</Link></div>
-      <p className="text-cyber-muted text-sm mb-8">Enter your unique identifier to start a new audit or recall an existing one.</p>
+      <h2 className="text-2xl font-bold text-cyber-text mb-2">Compliance Audit</h2>
+      <p className="text-cyber-muted text-sm mb-8">Start a new audit or look up an existing one.</p>
 
-      <div className="glass-card rounded-xl p-6 mb-8">
-        <label className="block text-sm font-medium text-cyber-text mb-2">Your Unique Identifier</label>
-        <div className="flex gap-3"><input value={identifier} onChange={e => setIdentifier(e.target.value)} onKeyDown={e => e.key === 'Enter' && lookupIdentifier()} placeholder="e.g., ACME-CORP-2024" className="flex-1 rounded-lg border border-cyber-border bg-cyber-bg px-4 py-2.5 text-sm text-cyber-text placeholder-cyber-muted outline-none focus:border-cyber-primary/50 transition-colors" /><button onClick={lookupIdentifier} className="rounded-lg bg-cyber-primary/20 border border-cyber-primary/30 px-6 py-2.5 text-sm font-medium text-cyber-primary hover:bg-cyber-primary/30 transition-colors">Look Up</button></div>
+      {/* New Audit Button */}
+      <div className="mb-6"><button onClick={() => { setShowNew(true); setFoundAudit(null); setCatalogue(''); }} className="flex items-center gap-2 rounded-lg bg-cyber-success/20 border border-cyber-success/30 px-5 py-3 text-sm font-bold text-cyber-success hover:bg-cyber-success/30 transition-colors"><Play size={18} />Start New Audit</button></div>
+
+      {/* Audit Catalogue Lookup */}
+      <div className="glass-card rounded-xl p-6 mb-6">
+        <label className="block text-sm font-medium text-cyber-text mb-2">Audit Catalogue</label>
+        <div className="flex gap-3"><input value={catalogue} onChange={e => setCatalogue(e.target.value)} onKeyDown={e => e.key === 'Enter' && lookupCatalogue()} placeholder="Enter audit name to look up..." className="flex-1 rounded-lg border border-cyber-border bg-cyber-bg px-4 py-2.5 text-sm text-cyber-text placeholder-cyber-muted outline-none focus:border-cyber-primary/50 transition-colors" /><button onClick={lookupCatalogue} className="rounded-lg bg-cyber-primary/20 border border-cyber-primary/30 px-6 py-2.5 text-sm font-medium text-cyber-primary hover:bg-cyber-primary/30 transition-colors">Look Up</button></div>
         {error && <p className="mt-2 text-xs text-cyber-danger">{error}</p>}
       </div>
 
-      {existingAudit && (<div className="glass-card rounded-xl p-6 mb-8 border-l-4 border-cyber-warning/30"><div className="flex items-center gap-2 mb-3"><AlertCircle className="text-cyber-warning" size={18} /><h3 className="text-sm font-bold text-cyber-text">Existing Audit Found</h3></div><div className="grid grid-cols-2 gap-4 mb-4 text-sm"><div><span className="text-cyber-muted">Identifier:</span> <span className="text-cyber-text font-medium">{existingAudit.identifier}</span></div><div><span className="text-cyber-muted">Status:</span> <span className={`font-medium ${existingAudit.status === 'completed' ? 'text-cyber-success' : 'text-cyber-warning'}`}>{existingAudit.status}</span></div><div><span className="text-cyber-muted">Control:</span> <span className="text-cyber-text">{strategies.find(s => s.id === existingAudit.control_id)?.name}</span></div><div><span className="text-cyber-muted">Maturity:</span> <span className="text-cyber-text">ML{existingAudit.maturity_level}</span></div></div><div className="flex gap-3"><Link to={`/audit/${existingAudit.id}`} className="rounded-lg bg-cyber-primary/20 border border-cyber-primary/30 px-4 py-2 text-sm font-medium text-cyber-primary hover:bg-cyber-primary/30 transition-colors">Continue</Link><Link to={`/audit/${existingAudit.id}/report`} className="rounded-lg border border-cyber-border px-4 py-2 text-sm font-medium text-cyber-muted hover:text-cyber-text transition-colors">Report</Link><button onClick={() => deleteAudit(existingAudit.id)} className="rounded-lg border border-cyber-danger/30 px-4 py-2 text-sm font-medium text-cyber-danger hover:bg-cyber-danger/10 transition-colors flex items-center gap-1"><Trash2 size={14} />Delete</button></div></div>)}
-
-      {showNew && <NewAuditForm identifier={identifier.trim()} onCreated={setExistingAudit} />}
-
-      {audits.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-bold text-cyber-text">All Audits ({audits.length})</h3><button onClick={() => setDeleteConfirm('all')} className="rounded-lg border border-cyber-danger/30 px-3 py-1.5 text-xs font-medium text-cyber-danger hover:bg-cyber-danger/10 transition-colors flex items-center gap-1"><Trash size={12} />Delete All</button></div>
-          <div className="space-y-3">{audits.map(a => (<div key={a.identifier} className="glass-card rounded-lg p-4 flex items-center justify-between"><div><p className="text-sm font-medium text-cyber-text">{a.identifier}</p><p className="text-xs text-cyber-muted">{strategies.find(s => s.id === a.control_id)?.name} — ML{a.maturity_level} • {a.status}{a.total_requirements > 0 && ` • ${a.compliant_count}/${a.total_requirements} compliant`}</p></div><div className="flex items-center gap-2"><Link to={`/audit/${a.id}`} className="text-xs text-cyber-primary hover:underline">Open</Link><Link to={`/audit/${a.id}/report`} className="text-xs text-cyber-secondary hover:underline">Report</Link><button onClick={() => deleteAudit(a.id)} className="text-xs text-cyber-danger hover:underline flex items-center gap-1"><Trash2 size={10} />Delete</button></div></div>))}</div>
+      {/* Last Audit */}
+      {lastAudit && (
+        <div className="glass-card rounded-xl p-6 mb-6 border-l-4 border-cyber-secondary/30">
+          <div className="flex items-center justify-between">
+            <div><h3 className="text-sm font-bold text-cyber-text flex items-center gap-2"><Clock size={16} className="text-cyber-secondary" />Last Audit</h3><p className="text-xs text-cyber-muted mt-1">{lastAudit.identifier} • {strategies.find(s => s.id === lastAudit.control_id)?.name} • ML{lastAudit.maturity_level} • {lastAudit.status}{lastAudit.locked ? ' • 🔒 Locked' : ''}</p></div>
+            <button onClick={handleLastAuditClick} className="rounded-lg bg-cyber-secondary/20 border border-cyber-secondary/30 px-4 py-2 text-sm font-medium text-cyber-secondary hover:bg-cyber-secondary/20 transition-colors flex items-center gap-1">{lastAudit.status === 'completed' ? <><BarChart3 size={14} />Overall Report</> : <><FileText size={14} />Continue</>}</button>
+          </div>
         </div>
       )}
 
-      {deleteConfirm === 'all' && (<div className="fixed inset-0 z-50 modal-overlay flex items-center justify-center p-4"><div className="glass-card rounded-xl p-6 max-w-sm w-full border border-cyber-danger/30"><h3 className="text-lg font-bold text-cyber-danger mb-2">Delete All Audits?</h3><p className="text-sm text-cyber-muted mb-4">This will permanently delete all {audits.length} audits and their evidence. This cannot be undone.</p><div className="flex gap-3"><button onClick={deleteAllAudits} className="rounded-lg bg-cyber-danger/20 border border-cyber-danger/30 px-4 py-2 text-sm font-medium text-cyber-danger hover:bg-cyber-danger/30 transition-colors">Delete All</button><button onClick={() => setDeleteConfirm(null)} className="rounded-lg border border-cyber-border px-4 py-2 text-sm text-cyber-muted hover:text-cyber-text transition-colors">Cancel</button></div></div></div>)}
+      {/* Found Audit */}
+      {foundAudit && !showNew && (
+        <div className="glass-card rounded-xl p-6 mb-6 border-l-4 border-cyber-warning/30">
+          <div className="flex items-center gap-2 mb-3"><AlertCircle className="text-cyber-warning" size={18} /><h3 className="text-sm font-bold text-cyber-text">Audit Found</h3></div>
+          <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+            <div><span className="text-cyber-muted">Name:</span> <span className="text-cyber-text font-medium">{foundAudit.identifier}</span></div>
+            <div><span className="text-cyber-muted">Status:</span> <span className={`font-medium ${foundAudit.status === 'completed' ? 'text-cyber-success' : 'text-cyber-warning'}`}>{foundAudit.status}{foundAudit.locked ? ' • 🔒' : ''}</span></div>
+            <div><span className="text-cyber-muted">Control:</span> <span className="text-cyber-text">{strategies.find(s => s.id === foundAudit.control_id)?.name}</span></div>
+            <div><span className="text-cyber-muted">Maturity:</span> <span className="text-cyber-text">ML{foundAudit.maturity_level}</span></div>
+          </div>
+          <div className="flex gap-3">
+            <Link to={`/audit/${foundAudit.id}`} className="rounded-lg bg-cyber-primary/20 border border-cyber-primary/30 px-4 py-2 text-sm font-medium text-cyber-primary hover:bg-cyber-primary/30 transition-colors">{foundAudit.status === 'completed' ? 'View' : 'Continue'}</Link>
+            <Link to={`/audit/${foundAudit.id}/report`} className="rounded-lg border border-cyber-border px-4 py-2 text-sm font-medium text-cyber-muted hover:text-cyber-text transition-colors">Report</Link>
+            <button onClick={() => deleteAudit(foundAudit.id)} className="rounded-lg border border-cyber-danger/30 px-4 py-2 text-sm font-medium text-cyber-danger hover:bg-cyber-danger/10 transition-colors flex items-center gap-1"><Trash2 size={14} />Delete</button>
+          </div>
+        </div>
+      )}
+
+      {/* New Audit Form */}
+      {showNew && <NewAuditForm onCreated={(a) => { setRefreshKey(k => k + 1); setFoundAudit(a); setShowNew(false); setCatalogue(a.identifier); }} />}
+
+      {/* All Audits List */}
+      {audits.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-bold text-cyber-text">All Audits ({audits.length})</h3><button onClick={() => setDeleteConfirm('all')} className="rounded-lg border border-cyber-danger/30 px-3 py-1.5 text-xs font-medium text-cyber-danger hover:bg-cyber-danger/10 transition-colors flex items-center gap-1"><Trash size={12} />Delete All</button></div>
+          <div className="space-y-3">{audits.map(a => (<div key={a.identifier} className="glass-card rounded-lg p-4 flex items-center justify-between"><div><p className="text-sm font-medium text-cyber-text">{a.identifier}{a.locked ? <LockIcon size={12} className="inline ml-1 text-cyber-muted" /> : null}</p><p className="text-xs text-cyber-muted">{strategies.find(s => s.id === a.control_id)?.name} — ML{a.maturity_level} • {a.status}{a.total_requirements > 0 && ` • ${a.compliant_count}/${a.total_requirements}`}</p></div><div className="flex items-center gap-2"><Link to={`/audit/${a.id}`} className="text-xs text-cyber-primary hover:underline">Open</Link><Link to={`/audit/${a.id}/report`} className="text-xs text-cyber-secondary hover:underline">Report</Link><button onClick={() => deleteAudit(a.id)} className="text-xs text-cyber-danger hover:underline"><Trash2 size={12} /></button></div></div>))}</div>
+        </div>
+      )}
+
+      {deleteConfirm === 'all' && (<div className="fixed inset-0 z-50 modal-overlay flex items-center justify-center p-4"><div className="glass-card rounded-xl p-6 max-w-sm w-full border border-cyber-danger/30"><h3 className="text-lg font-bold text-cyber-danger mb-2">Delete All Audits?</h3><p className="text-sm text-cyber-muted mb-4">This will permanently delete all {audits.length} audits and evidence.</p><div className="flex gap-3"><button onClick={deleteAllAudits} className="rounded-lg bg-cyber-danger/20 border border-cyber-danger/30 px-4 py-2 text-sm font-medium text-cyber-danger hover:bg-cyber-danger/30 transition-colors">Delete All</button><button onClick={() => setDeleteConfirm(null)} className="rounded-lg border border-cyber-border px-4 py-2 text-sm text-cyber-muted hover:text-cyber-text transition-colors">Cancel</button></div></div></div>)}
     </div>
   );
 }
 
-function NewAuditForm({ identifier, onCreated }) {
-  const [controlId, setControlId] = useState('');
+function NewAuditForm({ onCreated }) {
+  const [auditName, setAuditName] = useState('');
+  const [currentControl, setCurrentControl] = useState(0);
   const [maturityLevel, setMaturityLevel] = useState(1);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
-  async function handleCreate() {
-    if (!controlId) { setError('Please select a control'); return; }
+  const [createdAudits, setCreatedAudits] = useState([]);
+
+  const control = strategies[currentControl];
+  const isLast = currentControl === strategies.length - 1;
+
+  async function createAudit() {
+    if (!auditName.trim()) { setError('Please enter an audit name'); return; }
     setCreating(true); setError('');
-    try { const a = await apiFetch('/audits', { method: 'POST', body: JSON.stringify({ identifier, controlId, maturityLevel }) }); onCreated(a); }
-    catch (e) { setError(e.message); }
+    const dateStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+    const identifier = `${dateStr}-${auditName.trim()}`;
+    try {
+      const a = await apiFetch('/audits', { method: 'POST', body: JSON.stringify({ identifier, controlId: control.id, maturityLevel }) });
+      const newAudits = [...createdAudits, a];
+      setCreatedAudits(newAudits);
+      if (isLast) {
+        // All controls done — go to the first audit
+        onCreated(newAudits[0]);
+      } else {
+        setCurrentControl(c => c + 1);
+      }
+    } catch (e) { setError(e.message); }
     setCreating(false);
   }
-  return (<div className="glass-card rounded-xl p-6 mb-8 border-l-4 border-cyber-success/30"><div className="flex items-center gap-2 mb-4"><CheckCircle className="text-cyber-success" size={18} /><h3 className="text-sm font-bold text-cyber-text">Start New Audit</h3></div><p className="text-xs text-cyber-muted mb-4">Identifier: <span className="text-cyber-text font-medium">{identifier}</span></p><div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4"><div><label className="block text-xs font-medium text-cyber-muted mb-1">Control</label><select value={controlId} onChange={e => setControlId(e.target.value)} className="w-full rounded-lg border border-cyber-border bg-cyber-bg px-3 py-2 text-sm text-cyber-text outline-none focus:border-cyber-primary/50"><option value="">Select...</option>{strategies.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div><div><label className="block text-xs font-medium text-cyber-muted mb-1">Maturity Level</label><select value={maturityLevel} onChange={e => setMaturityLevel(Number(e.target.value))} className="w-full rounded-lg border border-cyber-border bg-cyber-bg px-3 py-2 text-sm text-cyber-text outline-none focus:border-cyber-primary/50"><option value={1}>ML1</option><option value={2}>ML2</option><option value={3}>ML3</option></select></div></div>{error && <p className="mb-3 text-xs text-cyber-danger">{error}</p>}<button onClick={handleCreate} disabled={creating || !controlId} className="rounded-lg bg-cyber-success/20 border border-cyber-success/30 px-6 py-2.5 text-sm font-medium text-cyber-success hover:bg-cyber-success/30 disabled:opacity-50 transition-colors">{creating ? 'Creating...' : 'Start Audit'}</button></div>);
+
+  return (
+    <div className="glass-card rounded-xl p-6 mb-8 border-l-4 border-cyber-success/30">
+      <div className="flex items-center gap-2 mb-4"><Play className="text-cyber-success" size={18} /><h3 className="text-sm font-bold text-cyber-text">New Audit — Control {currentControl + 1} of 8</h3></div>
+      {createdAudits.length > 0 && <div className="mb-4 rounded-lg bg-cyber-bg/50 p-3"><p className="text-xs font-medium text-cyber-muted mb-1">Created so far:</p>{createdAudits.map(a => (<p key={a.id} className="text-xs text-cyber-text">✓ {a.identifier} — {strategies.find(s => s.id === a.control_id)?.name} ML{a.maturity_level}</p>))}</div>}
+      {currentControl === 0 && !createdAudits.length && (<div className="mb-4"><label className="block text-xs font-medium text-cyber-muted mb-1">Audit Name</label><input value={auditName} onChange={e => setAuditName(e.target.value)} placeholder="e.g., Q1-2025-Assessment" className="w-full rounded-lg border border-cyber-border bg-cyber-bg px-3 py-2 text-sm text-cyber-text placeholder-cyber-muted outline-none focus:border-cyber-primary/50" /><p className="text-[10px] text-cyber-muted mt-1">Will be saved as: {new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}-{auditName || '...'}</p></div>)}
+      <div className="mb-4"><div className="flex items-center gap-2 mb-2">{(() => { const Icon = iconMap[control.icon]; return Icon ? <Icon className="text-cyber-primary" size={20} /> : null; })()}<div><h4 className="text-sm font-bold text-cyber-text">{control.name}</h4><p className="text-xs text-cyber-muted">{control.description}</p></div></div></div>
+      <div className="mb-4"><label className="block text-xs font-medium text-cyber-muted mb-1">Maturity Level</label><select value={maturityLevel} onChange={e => setMaturityLevel(Number(e.target.value))} className="w-full rounded-lg border border-cyber-border bg-cyber-bg px-3 py-2 text-sm text-cyber-text outline-none focus:border-cyber-primary/50"><option value={1}>Maturity Level One</option><option value={2}>Maturity Level Two</option><option value={3}>Maturity Level Three</option></select></div>
+      {error && <p className="mb-3 text-xs text-cyber-danger">{error}</p>}
+      <button onClick={createAudit} disabled={creating || !auditName.trim()} className="rounded-lg bg-cyber-success/20 border border-cyber-success/30 px-6 py-2.5 text-sm font-medium text-cyber-success hover:bg-cyber-success/30 disabled:opacity-50 transition-colors">{creating ? 'Creating...' : isLast ? 'Create & Start Audit' : 'Create & Continue →'}</button>
+    </div>
+  );
 }
 
 function AuditWorkflow({ auditId }) {
@@ -228,7 +254,11 @@ function AuditWorkflow({ auditId }) {
   const [evidence, setEvidence] = useState({});
   const [saving, setSaving] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [showLockModal, setShowLockModal] = useState(false);
+  const [lockPassword, setLockPassword] = useState('');
+  const [lockError, setLockError] = useState('');
   const loadedRef = useRef(false);
+
   const strategy = audit ? strategies.find(s => s.id === audit.control_id) : null;
   const maturity = strategy?.maturityLevels.find(m => m.level === audit?.maturity_level);
   const reqs = maturity?.requirements || [];
@@ -246,29 +276,53 @@ function AuditWorkflow({ auditId }) {
   useEffect(() => { if (!loadedRef.current) { loadedRef.current = true; loadAudit(); } }, [loadAudit]);
 
   async function setCompliant(reqId, compliant, notes = '') {
+    if (audit?.locked) return;
     setSaving(true);
     try { const s = await apiFetch(`/audits/${auditId}/requirements/${reqId}`, { method: 'PUT', body: JSON.stringify({ compliant, notes }) }); setStatuses(p => ({ ...p, [reqId]: s })); } catch (err) { console.error(err); }
     setSaving(false);
   }
 
   async function uploadEvidence(reqId, type, desc, file) {
+    if (audit?.locked) return;
     const fd = new FormData(); fd.append('requirementId', reqId); fd.append('evidenceType', type); fd.append('description', desc); if (file) fd.append('file', file);
     try { await fetch(`${API}/audits/${auditId}/evidence`, { method: 'POST', body: fd }); const u = await apiFetch(`/audits/${auditId}/evidence?requirementId=${reqId}`); setEvidence(p => ({ ...p, [reqId]: u })); } catch (err) { console.error(err); }
   }
 
-  async function removeEvidence(evId) { try { await apiFetch(`/evidence/${evId}`, { method: 'DELETE' }); loadAudit(); } catch (err) { console.error(err); } }
+  async function removeEvidence(evId) { if (audit?.locked) return; try { await apiFetch(`/evidence/${evId}`, { method: 'DELETE' }); loadAudit(); } catch (err) { console.error(err); } }
 
-  async function completeAudit() { await apiFetch(`/audits/${auditId}/status`, { method: 'PUT', body: JSON.stringify({ status: 'completed' }) }); window.location.href = `/audit/${auditId}/report`; }
+  async function completeAudit() {
+    await apiFetch(`/audits/${auditId}/status`, { method: 'PUT', body: JSON.stringify({ status: 'completed' }) });
+    const updated = await apiFetch(`/audits/${auditId}`);
+    setAudit(updated);
+    setShowLockModal(true);
+  }
+
+  async function lockAudit() {
+    if (!lockPassword.trim()) { setLockError('Password required'); return; }
+    try { await apiFetch(`/audits/${auditId}/lock`, { method: 'PUT', body: JSON.stringify({ password: lockPassword }) }); setShowLockModal(false); loadAudit(); } catch (e) { setLockError(e.message); }
+  }
 
   if (!audit || !maturity) return <div className="p-8 text-cyber-muted">Loading...</div>;
   const cc = Object.values(statuses).filter(s => s.compliant === 1).length;
   const tc = reqs.length;
   const pct = tc > 0 ? Math.round((cc / tc) * 100) : 0;
 
-  return (<div className="mx-auto max-w-4xl px-4 py-8"><Link to="/audit" className="inline-flex items-center gap-1 text-sm text-cyber-muted hover:text-cyber-primary mb-6 transition-colors"><ArrowLeft size={14} /> Back</Link><div className="mb-6"><h2 className="text-xl font-bold text-cyber-text">{strategy.name} — {maturity.title}</h2><p className="text-sm text-cyber-muted">{audit.identifier}</p></div><div className="glass-card rounded-xl p-4 mb-6"><div className="flex items-center justify-between mb-2"><span className="text-sm font-medium text-cyber-text">{cc}/{tc} compliant</span><span className="text-sm font-medium text-cyber-primary">{pct}%</span></div><div className="h-2 rounded-full bg-cyber-border overflow-hidden"><div className="h-full rounded-full bg-cyber-primary transition-all" style={{ width: `${pct}%` }} /></div><div className="flex gap-1 mt-3">{reqs.map((req, i) => (<button key={req.id} onClick={() => setCurrentStep(i)} className={`h-2 flex-1 rounded-full transition-colors ${i === currentStep ? 'bg-cyber-primary' : statuses[req.id]?.compliant ? 'bg-cyber-success' : statuses[req.id] ? 'bg-cyber-danger' : 'bg-cyber-border'}`} />))}</div></div>{currentReq && <RequirementAssessment requirement={currentReq} status={statuses[currentReq.id]} evidence={evidence[currentReq.id] || []} onCompliant={(c, n) => setCompliant(currentReq.id, c, n)} onEvidence={(t, d, f) => uploadEvidence(currentReq.id, t, d, f)} onRemoveEvidence={removeEvidence} saving={saving} />}<div className="flex items-center justify-between mt-6"><button onClick={() => setCurrentStep(Math.max(0, currentStep - 1))} disabled={currentStep === 0} className="rounded-lg border border-cyber-border px-4 py-2 text-sm text-cyber-muted hover:text-cyber-text disabled:opacity-30 transition-colors">Previous</button><span className="text-xs text-cyber-muted">{currentStep + 1} of {tc}</span>{currentStep < tc - 1 ? <button onClick={() => setCurrentStep(currentStep + 1)} className="rounded-lg bg-cyber-primary/20 border border-cyber-primary/30 px-4 py-2 text-sm font-medium text-cyber-primary hover:bg-cyber-primary/30 transition-colors">Next</button> : <button onClick={completeAudit} className="rounded-lg bg-cyber-success/20 border border-cyber-success/30 px-4 py-2 text-sm font-medium text-cyber-success hover:bg-cyber-success/30 transition-colors">Complete</button>}</div></div>);
+  return (
+    <div className="mx-auto max-w-4xl px-4 py-8">
+      <Link to="/audit" className="inline-flex items-center gap-1 text-sm text-cyber-muted hover:text-cyber-primary mb-6 transition-colors"><ArrowLeft size={14} /> Back</Link>
+      <div className="flex items-center justify-between mb-6"><div><h2 className="text-xl font-bold text-cyber-text">{strategy.name} — {maturity.title}</h2><p className="text-sm text-cyber-muted">{audit.identifier}{audit.locked ? <span className="ml-2 text-cyber-warning flex items-center gap-1"><LockIcon size={12} />Locked</span> : null}</p></div>
+        {audit.status === 'completed' && !audit.locked && <button onClick={() => setShowLockModal(true)} className="rounded-lg border border-cyber-warning/30 px-3 py-1.5 text-xs font-medium text-cyber-warning hover:bg-cyber-warning/10 transition-colors flex items-center gap-1"><LockIcon size={12} />Lock Audit</button>}
+      </div>
+      <div className="glass-card rounded-xl p-4 mb-6"><div className="flex items-center justify-between mb-2"><span className="text-sm font-medium text-cyber-text">{cc}/{tc} compliant</span><span className="text-sm font-medium text-cyber-primary">{pct}%</span></div><div className="h-2 rounded-full bg-cyber-border overflow-hidden"><div className="h-full rounded-full bg-cyber-primary transition-all" style={{ width: `${pct}%` }} /></div><div className="flex gap-1 mt-3">{reqs.map((req, i) => (<button key={req.id} onClick={() => setCurrentStep(i)} className={`h-2 flex-1 rounded-full transition-colors ${i === currentStep ? 'bg-cyber-primary' : statuses[req.id]?.compliant ? 'bg-cyber-success' : statuses[req.id] ? 'bg-cyber-danger' : 'bg-cyber-border'}`} />))}</div></div>
+      {currentReq && <RequirementAssessment requirement={currentReq} status={statuses[currentReq.id]} evidence={evidence[currentReq.id] || []} onCompliant={(c, n) => setCompliant(currentReq.id, c, n)} onEvidence={(t, d, f) => uploadEvidence(currentReq.id, t, d, f)} onRemoveEvidence={removeEvidence} saving={saving} locked={!!audit.locked} />}
+      <div className="flex items-center justify-between mt-6"><button onClick={() => setCurrentStep(Math.max(0, currentStep - 1))} disabled={currentStep === 0} className="rounded-lg border border-cyber-border px-4 py-2 text-sm text-cyber-muted hover:text-cyber-text disabled:opacity-30 transition-colors">Previous</button><span className="text-xs text-cyber-muted">{currentStep + 1} of {tc}</span>{currentStep < tc - 1 ? <button onClick={() => setCurrentStep(currentStep + 1)} className="rounded-lg bg-cyber-primary/20 border border-cyber-primary/30 px-4 py-2 text-sm font-medium text-cyber-primary hover:bg-cyber-primary/30 transition-colors">Next</button> : audit.status !== 'completed' ? <button onClick={completeAudit} className="rounded-lg bg-cyber-success/20 border border-cyber-success/30 px-4 py-2 text-sm font-medium text-cyber-success hover:bg-cyber-success/30 transition-colors">Complete Audit</button> : <Link to={`/audit/${auditId}/report`} className="rounded-lg bg-cyber-primary/20 border border-cyber-primary/30 px-4 py-2 text-sm font-medium text-cyber-primary hover:bg-cyber-primary/30 transition-colors">View Report</Link>}</div>
+
+      {showLockModal && (<div className="fixed inset-0 z-50 modal-overlay flex items-center justify-center p-4"><div className="glass-card rounded-xl p-6 max-w-sm w-full border border-cyber-warning/30"><h3 className="text-lg font-bold text-cyber-warning mb-2 flex items-center gap-2"><LockIcon size={18} />Lock Audit</h3><p className="text-xs text-cyber-muted mb-4">Once locked, this audit cannot be edited. You can unlock it later with this password.</p><input type="password" value={lockPassword} onChange={e => setLockPassword(e.target.value)} placeholder="Enter password" className="w-full rounded-lg border border-cyber-border bg-cyber-bg px-3 py-2 text-sm text-cyber-text placeholder-cyber-muted outline-none focus:border-cyber-warning/50 mb-2" />{lockError && <p className="mb-2 text-xs text-cyber-danger">{lockError}</p>}<div className="flex gap-3"><button onClick={lockAudit} className="rounded-lg bg-cyber-warning/20 border border-cyber-warning/30 px-4 py-2 text-sm font-medium text-cyber-warning hover:bg-cyber-warning/30 transition-colors">Lock</button><button onClick={() => setShowLockModal(false)} className="rounded-lg border border-cyber-border px-4 py-2 text-sm text-cyber-muted hover:text-cyber-text transition-colors">Cancel</button></div></div></div>)}
+    </div>
+  );
 }
 
-function RequirementAssessment({ requirement, status, evidence, onCompliant, onEvidence, onRemoveEvidence, saving }) {
+function RequirementAssessment({ requirement, status, evidence, onCompliant, onEvidence, onRemoveEvidence, saving, locked }) {
   const [notes, setNotes] = useState(status?.notes || '');
   const [evType, setEvType] = useState('screenshot');
   const [evDesc, setEvDesc] = useState('');
@@ -278,7 +332,14 @@ function RequirementAssessment({ requirement, status, evidence, onCompliant, onE
   const isNC = status?.compliant === 0;
   const evTypes = [{ v: 'screenshot', l: 'Screenshot' }, { v: 'config_export', l: 'Config Export' }, { v: 'policy_document', l: 'Policy Doc' }, { v: 'scan_report', l: 'Scan Report' }, { v: 'log_export', l: 'Log Export' }, { v: 'photo', l: 'Photo' }, { v: 'other', l: 'Other' }];
 
-  return (<div className="glass-card rounded-xl p-6"><div className="flex items-start justify-between mb-4"><div><span className="rounded bg-cyber-primary/10 px-2 py-0.5 text-[10px] font-bold text-cyber-primary">{requirement.id.toUpperCase()}</span><h3 className="text-sm font-bold text-cyber-text mt-2">{requirement.text}</h3></div>{isC && <CheckCircle className="text-cyber-success shrink-0" size={20} />}{isNC && <XCircle className="text-cyber-danger shrink-0" size={20} />}</div><div className="flex gap-3 mb-4"><button onClick={() => onCompliant(true, notes)} disabled={saving} className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${isC ? 'bg-cyber-success/20 border-cyber-success/40 text-cyber-success' : 'border-cyber-border text-cyber-muted hover:border-cyber-success/30'}`}><Check size={14} className="inline mr-1.5" />Compliant</button><button onClick={() => onCompliant(false, notes)} disabled={saving} className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${isNC ? 'bg-cyber-danger/20 border-cyber-danger/40 text-cyber-danger' : 'border-cyber-border text-cyber-muted hover:border-cyber-danger/30'}`}><XCircle size={14} className="inline mr-1.5" />Not Compliant</button></div>{isNC && <div className="rounded-lg bg-cyber-danger/10 border border-cyber-danger/20 p-3 mb-4"><p className="text-xs text-cyber-danger flex items-center gap-1.5"><AlertCircle size={12} /> This requirement will be marked as failed. Add evidence or notes to explain.</p></div>}<div className="mb-4"><label className="block text-xs font-medium text-cyber-muted mb-1">Notes</label><textarea value={notes} onChange={e => setNotes(e.target.value)} onBlur={() => { if (!saving) onCompliant(isC, notes); }} placeholder="Optional notes..." rows={2} className="w-full rounded-lg border border-cyber-border bg-cyber-bg px-3 py-2 text-sm text-cyber-text placeholder-cyber-muted outline-none focus:border-cyber-primary/50 resize-none" /></div><div className="border-t border-cyber-border pt-4"><button onClick={() => setShowEv(!showEv)} className="flex items-center gap-2 text-sm font-medium text-cyber-text mb-3"><FileUp size={14} />Evidence ({evidence.length})<ChevronRight size={12} className={`transition-transform ${showEv ? 'rotate-90' : ''}`} /></button>{showEv && (<><div className="rounded-lg border border-cyber-border p-3 mb-3 space-y-2"><div className="grid grid-cols-2 gap-2"><select value={evType} onChange={e => setEvType(e.target.value)} className="rounded border border-cyber-border bg-cyber-bg px-2 py-1.5 text-xs text-cyber-text outline-none">{evTypes.map(t => <option key={t.v} value={t.v}>{t.l}</option>)}</select><input type="file" onChange={e => setFile(e.target.files?.[0] || null)} className="text-xs text-cyber-muted file:mr-2 file:rounded file:border-0 file:bg-cyber-primary/10 file:px-2 file:py-1 file:text-xs file:text-cyber-primary" /></div><input value={evDesc} onChange={e => setEvDesc(e.target.value)} placeholder="Description" className="w-full rounded border border-cyber-border bg-cyber-bg px-2 py-1.5 text-xs text-cyber-text placeholder-cyber-muted outline-none" /><button onClick={() => { onEvidence(evType, evDesc, file); setFile(null); setEvDesc(''); }} className="rounded bg-cyber-primary/20 border border-cyber-primary/30 px-3 py-1.5 text-xs font-medium text-cyber-primary hover:bg-cyber-primary/30 transition-colors">Add</button></div>{evidence.length > 0 ? <div className="space-y-2">{evidence.map(ev => (<div key={ev.id} className="flex items-center justify-between rounded-lg border border-cyber-border p-2"><div className="flex items-center gap-2 min-w-0"><span className="rounded bg-cyber-bg px-1.5 py-0.5 text-[9px] font-medium text-cyber-muted uppercase">{ev.evidence_type}</span><span className="text-xs text-cyber-text truncate">{ev.file_name || ev.description || '—'}</span></div><button onClick={() => onRemoveEvidence(ev.id)} className="text-cyber-muted hover:text-cyber-danger"><Trash2 size={12} /></button></div>))}</div> : <p className="text-xs text-cyber-muted">No evidence yet.</p>}</>)}</div></div>);
+  return (<div className="glass-card rounded-xl p-6"><div className="flex items-start justify-between mb-4"><div><span className="rounded bg-cyber-primary/10 px-2 py-0.5 text-[10px] font-bold text-cyber-primary">{requirement.id.toUpperCase()}</span><h3 className="text-sm font-bold text-cyber-text mt-2">{requirement.text}</h3></div>{isC && <CheckCircle className="text-cyber-success shrink-0" size={20} />}{isNC && <XCircle className="text-cyber-danger shrink-0" size={20} />}</div>
+    {!locked && <div className="flex gap-3 mb-4"><button onClick={() => onCompliant(true, notes)} disabled={saving} className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${isC ? 'bg-cyber-success/20 border-cyber-success/40 text-cyber-success' : 'border-cyber-border text-cyber-muted hover:border-cyber-success/30'}`}><Check size={14} className="inline mr-1.5" />Compliant</button><button onClick={() => onCompliant(false, notes)} disabled={saving} className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${isNC ? 'bg-cyber-danger/20 border-cyber-danger/40 text-cyber-danger' : 'border-cyber-border text-cyber-muted hover:border-cyber-danger/30'}`}><XCircle size={14} className="inline mr-1.5" />Not Compliant</button></div>}
+    {locked && <div className="rounded-lg bg-cyber-warning/10 border border-cyber-warning/20 p-3 mb-4"><p className="text-xs text-cyber-warning flex items-center gap-1.5"><LockIcon size={12} />This audit is locked and cannot be edited.</p></div>}
+    {isNC && <div className="rounded-lg bg-cyber-danger/10 border border-cyber-danger/20 p-3 mb-4"><p className="text-xs text-cyber-danger flex items-center gap-1.5"><AlertCircle size={12} /> This requirement will be marked as failed.</p></div>}
+    <div className="mb-4"><label className="block text-xs font-medium text-cyber-muted mb-1">Notes</label><textarea value={notes} onChange={e => setNotes(e.target.value)} onBlur={() => { if (!saving && !locked) onCompliant(isC, notes); }} placeholder="Optional notes..." rows={2} className="w-full rounded-lg border border-cyber-border bg-cyber-bg px-3 py-2 text-sm text-cyber-text placeholder-cyber-muted outline-none focus:border-cyber-primary/50 resize-none" /></div>
+    <div className="border-t border-cyber-border pt-4"><button onClick={() => setShowEv(!showEv)} className="flex items-center gap-2 text-sm font-medium text-cyber-text mb-3"><FileUp size={14} />Evidence ({evidence.length})<ChevronRight size={12} className={`transition-transform ${showEv ? 'rotate-90' : ''}`} /></button>
+    {showEv && (<><div className="rounded-lg border border-cyber-border p-3 mb-3 space-y-2"><div className="grid grid-cols-2 gap-2"><select value={evType} onChange={e => setEvType(e.target.value)} className="rounded border border-cyber-border bg-cyber-bg px-2 py-1.5 text-xs text-cyber-text outline-none">{evTypes.map(t => <option key={t.v} value={t.v}>{t.l}</option>)}</select><input type="file" onChange={e => setFile(e.target.files?.[0] || null)} className="text-xs text-cyber-muted file:mr-2 file:rounded file:border-0 file:bg-cyber-primary/10 file:px-2 file:py-1 file:text-xs file:text-cyber-primary" /></div><input value={evDesc} onChange={e => setEvDesc(e.target.value)} placeholder="Description" className="w-full rounded border border-cyber-border bg-cyber-bg px-2 py-1.5 text-xs text-cyber-text placeholder-cyber-muted outline-none" /><button onClick={() => { onEvidence(evType, evDesc, file); setFile(null); setEvDesc(''); }} className="rounded bg-cyber-primary/20 border border-cyber-primary/30 px-3 py-1.5 text-xs font-medium text-cyber-primary hover:bg-cyber-primary/30 transition-colors">Add</button></div>
+    {evidence.length > 0 ? <div className="space-y-2">{evidence.map(ev => (<div key={ev.id} className="flex items-center justify-between rounded-lg border border-cyber-border p-2"><div className="flex items-center gap-2 min-w-0"><span className="rounded bg-cyber-bg px-1.5 py-0.5 text-[9px] font-medium text-cyber-muted uppercase">{ev.evidence_type}</span><span className="text-xs text-cyber-text truncate">{ev.file_name || ev.description || '—'}</span></div><button onClick={() => onRemoveEvidence(ev.id)} className="text-cyber-muted hover:text-cyber-danger"><Trash2 size={12} /></button></div>))}</div> : <p className="text-xs text-cyber-muted">No evidence yet.</p>}</>)}</div></div>);
 }
 
 function AuditReport({ auditId }) {
@@ -294,151 +355,103 @@ function AuditReport({ auditId }) {
   const nc = statuses.filter(s => s.compliant === 0);
   const c = statuses.filter(s => s.compliant === 1);
 
-  return (<div className="mx-auto max-w-4xl px-4 py-8"><Link to={`/audit/${auditId}`} className="inline-flex items-center gap-1 text-sm text-cyber-muted hover:text-cyber-primary mb-6 transition-colors"><ArrowLeft size={14} /> Back</Link><div className="mb-8"><h2 className="text-2xl font-bold text-cyber-text mb-1">Compliance Report</h2><p className="text-sm text-cyber-muted">{strategy?.name} — {maturity?.title}</p><p className="text-xs text-cyber-muted">{audit.identifier} • {new Date(audit.created_at).toLocaleDateString()}</p></div><div className="glass-card rounded-xl p-6 mb-6"><h3 className="text-lg font-bold text-cyber-text mb-4">Summary</h3><div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4"><div className="text-center"><div className="text-2xl font-bold text-cyber-primary">{summary.compliancePercent}%</div><div className="text-xs text-cyber-muted">Compliance</div></div><div className="text-center"><div className="text-2xl font-bold text-cyber-success">{summary.compliant}</div><div className="text-xs text-cyber-muted">Compliant</div></div><div className="text-center"><div className="text-2xl font-bold text-cyber-danger">{summary.nonCompliant}</div><div className="text-xs text-cyber-muted">Non-Compliant</div></div><div className="text-center"><div className="text-2xl font-bold text-cyber-secondary">{summary.evidenceItems}</div><div className="text-xs text-cyber-muted">Evidence</div></div></div><div className="h-3 rounded-full bg-cyber-border overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-cyber-danger via-cyber-warning to-cyber-success transition-all" style={{ width: `${summary.compliancePercent}%` }} /></div></div>{nc.length > 0 && <div className="glass-card rounded-xl p-6 mb-6 border-l-4 border-cyber-danger/30"><h3 className="text-lg font-bold text-cyber-danger mb-4 flex items-center gap-2"><XCircle size={18} /> Non-Compliant ({nc.length})</h3><div className="space-y-4">{nc.map(ns => { const req = reqs.find(r => r.id === ns.requirement_id); if (!req) return null; return (<div key={ns.id} className="rounded-lg border border-cyber-danger/20 bg-cyber-danger/5 p-4"><div className="flex items-start gap-2 mb-2"><span className="rounded bg-cyber-danger/10 px-1.5 py-0.5 text-[9px] font-bold text-cyber-danger">{req.id.toUpperCase()}</span><p className="text-sm text-cyber-text flex-1">{req.text}</p></div>{ns.notes && <p className="text-xs text-cyber-muted mb-2 italic">{ns.notes}</p>}<div className="rounded bg-cyber-bg/50 p-3 mt-2"><p className="text-xs font-bold text-cyber-secondary mb-1">Recommendation:</p><p className="text-xs text-cyber-text">{req.implementation}</p><p className="text-xs text-cyber-muted mt-1">Examples: {req.examples.slice(0, 3).join(', ')}</p></div></div>); })}</div></div>}{c.length > 0 && <div className="glass-card rounded-xl p-6 mb-6 border-l-4 border-cyber-success/30"><h3 className="text-lg font-bold text-cyber-success mb-4 flex items-center gap-2"><CheckCircle size={18} /> Compliant ({c.length})</h3><div className="space-y-2">{c.map(cs => { const req = reqs.find(r => r.id === cs.requirement_id); if (!req) return null; return (<div key={cs.id} className="flex items-start gap-2 rounded-lg border border-cyber-success/10 bg-cyber-success/5 p-3"><CheckCircle size={14} className="text-cyber-success mt-0.5 shrink-0" /><div><span className="text-[9px] font-bold text-cyber-success">{req.id.toUpperCase()}</span><p className="text-xs text-cyber-text">{req.text}</p></div></div>); })}</div></div>}{evidence.length > 0 && <div className="glass-card rounded-xl p-6"><h3 className="text-lg font-bold text-cyber-text mb-4">Evidence ({evidence.length})</h3><div className="space-y-2">{evidence.map(ev => (<div key={ev.id} className="flex items-center gap-3 rounded-lg border border-cyber-border p-2"><span className="rounded bg-cyber-bg px-1.5 py-0.5 text-[9px] font-medium text-cyber-muted uppercase">{ev.evidence_type}</span><span className="text-xs text-cyber-text flex-1 truncate">{ev.file_name || ev.description || '—'}</span></div>))}</div></div>}</div>);
+  return (<div className="mx-auto max-w-4xl px-4 py-8"><Link to={`/audit/${auditId}`} className="inline-flex items-center gap-1 text-sm text-cyber-muted hover:text-cyber-primary mb-6 transition-colors"><ArrowLeft size={14} /> Back</Link><div className="mb-8"><h2 className="text-2xl font-bold text-cyber-text mb-1">Compliance Report</h2><p className="text-sm text-cyber-muted">{strategy?.name} — {maturity?.title}</p><p className="text-xs text-cyber-muted">{audit.identifier} • {new Date(audit.created_at).toLocaleDateString()}</p></div><div className="glass-card rounded-xl p-6 mb-6"><h3 className="text-lg font-bold text-cyber-text mb-4">Summary</h3><div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4"><div className="text-center"><div className="text-2xl font-bold text-cyber-primary">{summary.compliancePercent}%</div><div className="text-xs text-cyber-muted">Compliance</div></div><div className="text-center"><div className="text-2xl font-bold text-cyber-success">{summary.compliant}</div><div className="text-xs text-cyber-muted">Compliant</div></div><div className="text-center"><div className="text-2xl font-bold text-cyber-danger">{summary.nonCompliant}</div><div className="text-xs text-cyber-muted">Non-Compliant</div></div><div className="text-center"><div className="text-2xl font-bold text-cyber-secondary">{summary.evidenceItems}</div><div className="text-xs text-cyber-muted">Evidence</div></div></div><div className="h-3 rounded-full bg-cyber-border overflow-hidden"><div className={`h-full rounded-full transition-all ${summary.compliancePercent === 100 ? 'bg-cyber-success' : summary.compliancePercent >= 50 ? 'bg-cyber-warning' : 'bg-cyber-danger'}`} style={{ width: `${summary.compliancePercent}%` }} /></div></div>
+    {nc.length > 0 && <div className="glass-card rounded-xl p-6 mb-6 border-l-4 border-cyber-danger/30"><h3 className="text-lg font-bold text-cyber-danger mb-4 flex items-center gap-2"><XCircle size={18} /> Non-Compliant ({nc.length})</h3><div className="space-y-4">{nc.map(ns => { const req = reqs.find(r => r.id === ns.requirement_id); if (!req) return null; return (<div key={ns.id} className="rounded-lg border border-cyber-danger/20 bg-cyber-danger/5 p-4"><div className="flex items-start gap-2 mb-2"><span className="rounded bg-cyber-danger/10 px-1.5 py-0.5 text-[9px] font-bold text-cyber-danger">{req.id.toUpperCase()}</span><p className="text-sm text-cyber-text flex-1">{req.text}</p></div>{ns.notes && <p className="text-xs text-cyber-muted mb-2 italic">{ns.notes}</p>}<div className="rounded bg-cyber-bg/50 p-3 mt-2"><p className="text-xs font-bold text-cyber-secondary mb-1">Recommendation:</p><p className="text-xs text-cyber-text">{req.implementation}</p></div></div>); })}</div></div>}
+    {c.length > 0 && <div className="glass-card rounded-xl p-6 mb-6 border-l-4 border-cyber-success/30"><h3 className="text-lg font-bold text-cyber-success mb-4 flex items-center gap-2"><CheckCircle size={18} /> Compliant ({c.length})</h3><div className="space-y-2">{c.map(cs => { const req = reqs.find(r => r.id === cs.requirement_id); if (!req) return null; return (<div key={cs.id} className="flex items-start gap-2 rounded-lg border border-cyber-success/10 bg-cyber-success/5 p-3"><CheckCircle size={14} className="text-cyber-success mt-0.5 shrink-0" /><div><span className="text-[9px] font-bold text-cyber-success">{req.id.toUpperCase()}</span><p className="text-xs text-cyber-text">{req.text}</p></div></div>); })}</div></div>}
+    {evidence.length > 0 && <div className="glass-card rounded-xl p-6"><h3 className="text-lg font-bold text-cyber-text mb-4">Evidence ({evidence.length})</h3><div className="space-y-2">{evidence.map(ev => (<div key={ev.id} className="flex items-center gap-3 rounded-lg border border-cyber-border p-2"><span className="rounded bg-cyber-bg px-1.5 py-0.5 text-[9px] font-medium text-cyber-muted uppercase">{ev.evidence_type}</span><span className="text-xs text-cyber-text flex-1 truncate">{ev.file_name || ev.description || '—'}</span></div>))}</div></div>}</div>);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   OVERALL COMPLIANCE REPORT
-   ═══════════════════════════════════════════════════════════════ */
+function DynIcon({ name, className, size }) {
+  const Icon = iconMap[name];
+  return Icon ? <Icon className={className} size={size} /> : null;
+}
+
+function RiskReportCard({ cs }) {
+  return (
+    <div className="glass-card rounded-xl p-6 border-l-4 border-cyber-danger/30">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyber-danger/10 border border-cyber-danger/20">
+            <DynIcon name={cs.icon} className="text-cyber-danger" size={20} />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-cyber-text">{cs.name}</h4>
+            <p className="text-xs text-cyber-muted">ML{cs.highestLevel} • {cs.compliant}/{cs.total} ({cs.pct}%)</p>
+          </div>
+        </div>
+        <span className="rounded-full bg-cyber-danger/10 px-3 py-1 text-xs font-bold text-cyber-danger">{100 - cs.pct}% at risk</span>
+      </div>
+      <div className="h-2 rounded-full bg-cyber-border overflow-hidden mb-4">
+        <div className="h-full rounded-full bg-cyber-danger transition-all" style={{ width: `${cs.pct}%` }} />
+      </div>
+      <h5 className="text-xs font-bold uppercase tracking-wider text-cyber-muted mb-2">Missing Requirements ({cs.missingReqs.length})</h5>
+      <div className="space-y-3">
+        {cs.missingReqs.map((mr, i) => (
+          <div key={i} className="rounded-lg border border-cyber-danger/20 bg-cyber-danger/5 p-3">
+            <div className="flex items-start gap-2 mb-1">
+              <XCircle size={14} className="text-cyber-danger mt-0.5 shrink-0" />
+              <p className="text-xs font-medium text-cyber-text">{mr.text}</p>
+            </div>
+            {mr.notes && <p className="text-[10px] text-cyber-muted italic mb-1 ml-5">Note: {mr.notes}</p>}
+            <div className="ml-5 mt-2 rounded bg-cyber-bg/50 p-2">
+              <p className="text-[10px] font-bold text-cyber-secondary mb-0.5">Recommendation:</p>
+              <p className="text-[10px] text-cyber-text">{mr.implementation}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function OverallComplianceReport() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => { apiFetch('/audits/overall-report').then(setData).catch(console.error).finally(() => setLoading(false)); }, []);
-
   if (loading) return <div className="p-8 text-cyber-muted">Loading...</div>;
-  if (!data) return <div className="p-8 text-cyber-danger">Failed to load</div>;
+  if (!data) return <div className="p-8 text-cyber-danger">Failed</div>;
 
-  // Group by control, find highest maturity level with completed audit
   const controlMap = {};
   for (const s of strategies) { controlMap[s.id] = { name: s.name, icon: s.icon, levels: { 1: null, 2: null, 3: null } }; }
   for (const a of data) {
     if (a.status !== 'completed') continue;
     const existing = controlMap[a.control_id]?.levels[a.maturity_level];
-    if (!existing || a.compliant_count > existing.compliant_count) {
-      if (controlMap[a.control_id]) controlMap[a.control_id].levels[a.maturity_level] = a;
-    }
+    if (!existing || a.compliant_count > existing.compliant_count) { if (controlMap[a.control_id]) controlMap[a.control_id].levels[a.maturity_level] = a; }
   }
 
-  let totalCompliant = 0;
-  let totalReqs = 0;
+  let totalCompliant = 0, totalReqs = 0;
   const controlSummaries = Object.entries(controlMap).map(([id, c]) => {
-    const assessedLevels = Object.entries(c.levels).filter(([l, a]) => a !== null);
-    const highestLevel = assessedLevels.length > 0 ? Math.max(...assessedLevels.map(([l]) => parseInt(l))) : 0;
-    const highestAudit = highestLevel > 0 ? c.levels[highestLevel] : null;
-    const compliant = highestAudit ? highestAudit.compliant_count : 0;
-    const total = highestAudit ? highestAudit.total_requirements : 0;
-    totalCompliant += compliant;
-    totalReqs += total;
+    const assessed = Object.entries(c.levels).filter(([l, a]) => a !== null);
+    const highestLevel = assessed.length > 0 ? Math.max(...assessed.map(([l]) => parseInt(l))) : 0;
+    const audit = highestLevel > 0 ? c.levels[highestLevel] : null;
+    const compliant = audit ? audit.compliant_count : 0;
+    const total = audit ? audit.total_requirements : 0;
+    totalCompliant += compliant; totalReqs += total;
     const pct = total > 0 ? Math.round((compliant / total) * 100) : 0;
-    // Get the full requirement data for non-compliant items
-    const nonCompliantReqs = highestAudit?.nonCompliantReqs || [];
-    const missingReqs = nonCompliantReqs.map(nc => {
-      // Find the requirement in the strategy data
-      const strategy = strategies.find(s => s.id === id);
-      const ml = strategy?.maturityLevels.find(m => m.level === highestLevel);
-      const req = ml?.requirements.find(r => r.id === nc.requirement_id);
-      return { id: nc.requirement_id, text: req?.text || nc.requirement_id, notes: nc.notes, purpose: req?.purpose || '', implementation: req?.implementation || '' };
+    const missingReqs = (audit?.nonCompliantReqs || []).map(nc => {
+      const s = strategies.find(x => x.id === id); const ml = s?.maturityLevels.find(m => m.level === highestLevel); const req = ml?.requirements.find(r => r.id === nc.requirement_id);
+      return { id: nc.requirement_id, text: req?.text || nc.requirement_id, notes: req?.notes, implementation: req?.implementation || '' };
     });
-    return { id, name: c.name, icon: c.icon, highestLevel, highestAudit, compliant, total, pct, hasAudit: !!highestAudit, isCompliant: pct === 100, missingReqs };
+    return { id, name: c.name, icon: c.icon, highestLevel, audit, compliant, total, pct, hasAudit: !!audit, isCompliant: pct === 100, missingReqs };
   });
-
   const overallPct = totalReqs > 0 ? Math.round((totalCompliant / totalReqs) * 100) : 0;
-  const nonCompliantControls = controlSummaries.filter(c => c.hasAudit && !c.isCompliant);
-  const compliantControls = controlSummaries.filter(c => c.hasAudit && c.isCompliant);
-  const unassessedControls = controlSummaries.filter(c => !c.hasAudit);
+  const ncControls = controlSummaries.filter(c => c.hasAudit && !c.isCompliant);
+  const cControls = controlSummaries.filter(c => c.hasAudit && c.isCompliant);
+  const uControls = controlSummaries.filter(c => !c.hasAudit);
 
-  return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <Link to="/audit" className="inline-flex items-center gap-1 text-sm text-cyber-muted hover:text-cyber-primary mb-6 transition-colors"><ArrowLeft size={14} /> Back to Audits</Link>
-      <h2 className="text-2xl font-bold text-cyber-text mb-2">Overall Compliance Report</h2>
-      <p className="text-cyber-muted text-sm mb-8">Compliance across all 8 Essential Eight controls</p>
-
-      {/* Overall summary */}
-      <div className="glass-card rounded-xl p-6 mb-8 border-l-4 border-cyber-primary/30">
-        <h3 className="text-lg font-bold text-cyber-text mb-4">Overall Summary</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-          <div className="text-center"><div className="text-3xl font-bold text-cyber-primary">{overallPct}%</div><div className="text-xs text-cyber-muted">Overall Compliance</div></div>
-          <div className="text-center"><div className="text-3xl font-bold text-cyber-success">{totalCompliant}</div><div className="text-xs text-cyber-muted">Compliant Reqs</div></div>
-          <div className="text-center"><div className="text-3xl font-bold text-cyber-text">{totalReqs}</div><div className="text-xs text-cyber-muted">Total Assessed</div></div>
-          <div className="text-center"><div className="text-3xl font-bold text-cyber-secondary">{controlSummaries.filter(c => c.hasAudit).length}/8</div><div className="text-xs text-cyber-muted">Controls Assessed</div></div>
-        </div>
-        <div className="h-3 rounded-full bg-cyber-border overflow-hidden">
-          <div className={`h-full rounded-full transition-all ${overallPct === 100 ? 'bg-cyber-success' : overallPct >= 50 ? 'bg-cyber-warning' : 'bg-cyber-danger'}`} style={{ width: `${overallPct}%` }} />
-        </div>
+  return (<div className="mx-auto max-w-5xl px-4 py-8"><Link to="/audit" className="inline-flex items-center gap-1 text-sm text-cyber-muted hover:text-cyber-primary mb-6 transition-colors"><ArrowLeft size={14} /> Back</Link><h2 className="text-2xl font-bold text-cyber-text mb-2">Overall Compliance Report</h2><p className="text-cyber-muted text-sm mb-8">Compliance across all 8 Essential Eight controls by maturity level</p>
+    <div className="glass-card rounded-xl p-6 mb-8 border-l-4 border-cyber-primary/30"><h3 className="text-lg font-bold text-cyber-text mb-4">Summary</h3><div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4"><div className="text-center"><div className="text-3xl font-bold text-cyber-primary">{overallPct}%</div><div className="text-xs text-cyber-muted">Overall</div></div><div className="text-center"><div className="text-3xl font-bold text-cyber-success">{totalCompliant}</div><div className="text-xs text-cyber-muted">Compliant</div></div><div className="text-center"><div className="text-3xl font-bold text-cyber-text">{totalReqs}</div><div className="text-xs text-cyber-muted">Assessed</div></div><div className="text-center"><div className="text-3xl font-bold text-cyber-secondary">{controlSummaries.filter(c => c.hasAudit).length}/8</div><div className="text-xs text-cyber-muted">Controls</div></div></div><div className="h-3 rounded-full bg-cyber-border overflow-hidden"><div className={`h-full rounded-full transition-all ${overallPct === 100 ? 'bg-cyber-success' : overallPct >= 50 ? 'bg-cyber-warning' : 'bg-cyber-danger'}`} style={{ width: `${overallPct}%` }} /></div></div>
+    {ncControls.length > 0 && (
+      <div className="mb-8">
+        <h3 className="text-lg font-bold text-cyber-danger mb-4 flex items-center gap-2"><AlertTriangle size={18} /> Risk Report — Incomplete Controls ({ncControls.length})</h3>
+        <div className="space-y-6">{ncControls.map(cs => <RiskReportCard key={cs.id} cs={cs} />)}</div>
       </div>
-
-      {/* Risk Report - for controls less than 100% */}
-      {nonCompliantControls.length > 0 && (
-        <div className="mb-8">
-          <h3 className="text-lg font-bold text-cyber-danger mb-4 flex items-center gap-2"><AlertTriangle size={18} /> Risk Report — Incomplete Controls ({nonCompliantControls.length})</h3>
-          <div className="space-y-6">
-            {nonCompliantControls.map(cs => (
-              <div key={cs.id} className="glass-card rounded-xl p-6 border-l-4 border-cyber-danger/30">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyber-danger/10 border border-cyber-danger/20">{(() => { const Icon = iconMap[cs.icon]; return Icon ? <Icon className="text-cyber-danger" size={20} /> : null; })()}</div>
-                    <div><h4 className="text-sm font-bold text-cyber-text">{cs.name}</h4><p className="text-xs text-cyber-muted">ML{cs.highestLevel} • {cs.compliant}/{cs.total} compliant ({cs.pct}%)</p></div>
-                  </div>
-                  <span className="rounded-full bg-cyber-danger/10 px-3 py-1 text-xs font-bold text-cyber-danger">{100 - cs.pct}% at risk</span>
-                </div>
-                <div className="h-2 rounded-full bg-cyber-border overflow-hidden mb-4"><div className="h-full rounded-full bg-cyber-danger transition-all" style={{ width: `${cs.pct}%` }} /></div>
-                <h5 className="text-xs font-bold uppercase tracking-wider text-cyber-muted mb-2">Missing Requirements ({cs.missingReqs.length})</h5>
-                <div className="space-y-3">
-                  {cs.missingReqs.map((mr, i) => (
-                    <div key={i} className="rounded-lg border border-cyber-danger/20 bg-cyber-danger/5 p-3">
-                      <div className="flex items-start gap-2 mb-1"><XCircle size={14} className="text-cyber-danger mt-0.5 shrink-0" /><p className="text-xs font-medium text-cyber-text">{mr.text}</p></div>
-                      {mr.notes && <p className="text-[10px] text-cyber-muted italic mb-1 ml-5">Note: {mr.notes}</p>}
-                      <div className="ml-5 mt-2 rounded bg-cyber-bg/50 p-2"><p className="text-[10px] font-bold text-cyber-secondary mb-0.5">Recommendation:</p><p className="text-[10px] text-cyber-text">{mr.implementation}</p></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Compliant controls */}
-      {compliantControls.length > 0 && (
-        <div className="mb-8">
-          <h3 className="text-lg font-bold text-cyber-success mb-4 flex items-center gap-2"><CheckCircle size={18} /> Fully Compliant Controls ({compliantControls.length})</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {compliantControls.map(cs => (
-              <div key={cs.id} className="glass-card rounded-xl p-4 border-l-4 border-cyber-success/30">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyber-success/10 border border-cyber-success/20">{(() => { const Icon = iconMap[cs.icon]; return Icon ? <Icon className="text-cyber-success" size={16} /> : null; })()}</div>
-                  <div className="flex-1"><h4 className="text-sm font-bold text-cyber-text">{cs.name}</h4><p className="text-xs text-cyber-muted">ML{cs.highestLevel} • 100% compliant</p></div>
-                  <CheckCircle className="text-cyber-success" size={18} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Unassessed controls */}
-      {unassessedControls.length > 0 && (
-        <div>
-          <h3 className="text-lg font-bold text-cyber-muted mb-4 flex items-center gap-2"><AlertCircle size={18} /> Not Yet Assessed ({unassessedControls.length})</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {unassessedControls.map(cs => (
-              <div key={cs.id} className="glass-card rounded-xl p-4 opacity-50">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyber-border/30">{(() => { const Icon = iconMap[cs.icon]; return Icon ? <Icon className="text-cyber-muted" size={16} /> : null; })()}</div>
-                  <div><h4 className="text-sm font-medium text-cyber-muted">{cs.name}</h4><p className="text-xs text-cyber-muted">No completed audit</p></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+    )}
+    {cControls.length > 0 && <div className="mb-8"><h3 className="text-lg font-bold text-cyber-success mb-4 flex items-center gap-2"><CheckCircle size={18} /> Fully Compliant ({cControls.length})</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{cControls.map(cs => (<div key={cs.id} className="glass-card rounded-xl p-4 border-l-4 border-cyber-success/30"><div className="flex items-center gap-3"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyber-success/10 border border-cyber-success/20"><DynIcon name={cs.icon} className="text-cyber-success" size={16} /></div><div className="flex-1"><h4 className="text-sm font-bold text-cyber-text">{cs.name}</h4><p className="text-xs text-cyber-muted">ML{cs.highestLevel} • 100%</p></div><CheckCircle className="text-cyber-success" size={18} /></div></div>))}</div></div>}
+    {uControls.length > 0 && <div><h3 className="text-lg font-bold text-cyber-muted mb-4 flex items-center gap-2"><AlertCircle size={18} /> Not Assessed ({uControls.length})</h3><div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{uControls.map(cs => (<div key={cs.id} className="glass-card rounded-xl p-4 opacity-50"><div className="flex items-center gap-3"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyber-border/30"><DynIcon name={cs.icon} className="text-cyber-muted" size={16} /></div><div><h4 className="text-sm font-medium text-cyber-muted">{cs.name}</h4><p className="text-xs text-cyber-muted">No audit</p></div></div></div>))}</div></div>}
+  </div>);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   APP
-   ═══════════════════════════════════════════════════════════════ */
 export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const search = useSearch();

@@ -20,6 +20,8 @@ export function initDb() {
       control_id TEXT NOT NULL,
       maturity_level INTEGER NOT NULL,
       status TEXT NOT NULL DEFAULT 'in_progress',
+      locked INTEGER NOT NULL DEFAULT 0,
+      password_hash TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
@@ -224,7 +226,6 @@ export function getOverallComplianceReport() {
     ORDER BY a.control_id, a.maturity_level DESC
   `).all();
 
-  // For each audit, get the non-compliant requirement IDs
   for (const audit of audits) {
     const nonCompliant = db.prepare(
       "SELECT requirement_id, notes FROM requirement_status WHERE audit_id = ? AND compliant = 0"
@@ -234,4 +235,29 @@ export function getOverallComplianceReport() {
 
   db.close();
   return audits;
+}
+
+export function lockAudit(id, passwordHash) {
+  const db = getDb();
+  db.prepare("UPDATE audits SET locked = 1, password_hash = ?, updated_at = datetime('now') WHERE id = ?").run(passwordHash, id);
+  const audit = db.prepare("SELECT * FROM audits WHERE id = ?").get(id);
+  db.close();
+  return audit;
+}
+
+export function unlockAudit(id, passwordHash) {
+  const db = getDb();
+  const audit = db.prepare("SELECT password_hash FROM audits WHERE id = ?").get(id);
+  if (!audit || audit.password_hash !== passwordHash) { db.close(); return { error: "Invalid password" }; }
+  db.prepare("UPDATE audits SET locked = 0, password_hash = NULL, updated_at = datetime('now') WHERE id = ?").run(id);
+  const updated = db.prepare("SELECT * FROM audits WHERE id = ?").get(id);
+  db.close();
+  return updated;
+}
+
+export function getLastAudit() {
+  const db = getDb();
+  const audit = db.prepare("SELECT * FROM audits ORDER BY updated_at DESC LIMIT 1").get();
+  db.close();
+  return audit;
 }
