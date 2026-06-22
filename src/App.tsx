@@ -257,6 +257,7 @@ function AuditHome() {
    ═══════════════════════════════════════════════════════════════ */
 function NewAuditForm({ onCreated }) {
   const [auditName, setAuditName] = useState('');
+  const [maturityLevel, setMaturityLevel] = useState('all');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
 
@@ -266,18 +267,24 @@ function NewAuditForm({ onCreated }) {
     const dateStr = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
     const identifier = dateStr + '-' + auditName.trim();
     try {
-      const result = await apiFetch('/audits/group', { method: 'POST', body: JSON.stringify({ identifier, controlIds: WORKFLOW_CONTROLS }) });
+      const result = await apiFetch('/audits/group', {
+        method: 'POST',
+        body: JSON.stringify({ identifier, controlIds: WORKFLOW_CONTROLS, startLevel: maturityLevel }),
+      });
       onCreated(result.groupId);
     } catch (e) { setError(e.message); }
     setCreating(false);
   }
 
+  const levels = maturityLevel === 'all' ? [1, 2, 3] : [Number(maturityLevel)];
+
   return (
     <div className="glass-card rounded-xl p-6 mb-8 border-l-4 border-cyber-success/30">
       <div className="flex items-center gap-2 mb-4"><Play className="text-cyber-success" size={18} /><h3 className="text-sm font-bold text-cyber-text">New Multi-Control Audit</h3></div>
-      <p className="text-xs text-cyber-muted mb-4">This creates an assessment covering all 8 Essential Eight controls across ML1, ML2, and ML3. The workflow guides you through each control sequentially.</p>
+      <p className="text-xs text-cyber-muted mb-4">This creates an assessment covering all 8 Essential Eight controls. Select which maturity level(s) to assess.</p>
       <div className="mb-4"><label className="block text-xs font-medium text-cyber-muted mb-1">Audit Name</label><input value={auditName} onChange={e => setAuditName(e.target.value)} onKeyDown={e => e.key === 'Enter' && createGroup()} placeholder="e.g., Q1-2025-Assessment" className="w-full rounded-lg border border-cyber-border bg-cyber-bg px-3 py-2 text-sm text-cyber-text placeholder-cyber-muted outline-none focus:border-cyber-primary/50" /><p className="text-[10px] text-cyber-muted mt-1">Saved as: {new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}-{auditName || '...'}</p></div>
-      <div className="rounded-lg bg-cyber-bg/50 p-3 mb-4"><p className="text-[10px] font-bold text-cyber-muted uppercase tracking-wider mb-2">Assessment Order</p>{[1, 2, 3].map(ml => (<div key={ml} className="mb-1"><span className="text-[10px] font-bold text-cyber-primary">Maturity Level {ml}:</span><span className="text-[10px] text-cyber-muted ml-2">{WORKFLOW_CONTROLS.map(cid => strategies.find(s => s.id === cid)?.name).join(' → ')}</span></div>))}</div>
+      <div className="mb-4"><label className="block text-xs font-medium text-cyber-muted mb-2">Maturity Level</label><div className="flex gap-2">{[{ v: 'all', l: 'All (ML1 → ML2 → ML3)' }, { v: '1', l: 'Maturity Level 1 only' }, { v: '2', l: 'Maturity Level 2 only' }, { v: '3', l: 'Maturity Level 3 only' }].map(opt => (<button key={opt.v} onClick={() => setMaturityLevel(opt.v)} className={"flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-colors " + (maturityLevel === opt.v ? 'bg-cyber-success/20 border-cyber-success/40 text-cyber-success' : 'border-cyber-border text-cyber-muted hover:border-cyber-primary/30')}>{opt.l}</button>))}</div></div>
+      <div className="rounded-lg bg-cyber-bg/50 p-3 mb-4"><p className="text-[10px] font-bold text-cyber-muted uppercase tracking-wider mb-2">Assessment Order</p>{levels.map(ml => (<div key={ml} className="mb-1"><span className="text-[10px] font-bold text-cyber-primary">Maturity Level {ml}:</span><span className="text-[10px] text-cyber-muted ml-2">{WORKFLOW_CONTROLS.map(cid => strategies.find(s => s.id === cid)?.name).join(' → ')}</span></div>))}</div>
       {error && <p className="mb-3 text-xs text-cyber-danger">{error}</p>}
       <button onClick={createGroup} disabled={creating || !auditName.trim()} className="rounded-lg bg-cyber-success/20 border border-cyber-success/30 px-6 py-2.5 text-sm font-medium text-cyber-success hover:bg-cyber-success/30 disabled:opacity-50 transition-colors">{creating ? 'Creating...' : 'Create & Start Workflow'}</button>
     </div>
@@ -385,8 +392,16 @@ function AuditWorkflowSingle({ audit, strategy, maturity, onComplete, onPrev, on
   }, [audit.id]);
   useEffect(() => { if (!loadedRef.current) { loadedRef.current = true; loadAudit(); } }, [loadAudit]);
   async function setCompliant(reqId, compliant, notes) {
-    notes = notes || ''; setSaving(true);
-    try { const s = await apiFetch('/audits/' + audit.id + '/requirements/' + reqId, { method: 'PUT', body: JSON.stringify({ compliant, notes }) }); setStatuses(p => ({ ...p, [reqId]: s })); } catch (err) { console.error(err); }
+    notes = notes || '';
+    setSaving(true);
+    try {
+      const s = await apiFetch('/audits/' + audit.id + '/requirements/' + reqId, { method: 'PUT', body: JSON.stringify({ compliant, notes }) });
+      setStatuses(p => ({ ...p, [reqId]: s }));
+      // Auto-advance to next requirement after short delay
+      if (currentStep < tc - 1) {
+        setTimeout(() => setCurrentStep(prev => prev + 1), 300);
+      }
+    } catch (err) { console.error(err); }
     setSaving(false);
   }
   async function uploadEvidence(reqId, type, desc, file) {
@@ -449,6 +464,7 @@ function AuditReport({ auditId }) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [generating, setGenerating] = useState(false);
   useEffect(() => {
     apiFetch('/audits/' + auditId + '/report')
       .then(d => { setReport(d); setLoading(false); })
@@ -463,9 +479,64 @@ function AuditReport({ auditId }) {
   const reqs = maturity?.requirements || [];
   const nc = (statuses || []).filter(s => s.compliant === 0);
   const c = (statuses || []).filter(s => s.compliant === 1);
+  const allEvidence = evidence || [];
+
+  async function generatePDF() {
+    setGenerating(true);
+    try {
+      const { jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pw = doc.internal.pageSize.getWidth(); const m = 15; const cw = pw - m * 2; let y = m;
+      function check(needed) { if (y + needed > doc.internal.pageSize.getHeight() - m) { doc.addPage(); y = m; } }
+      doc.setFontSize(16); doc.setTextColor(0, 0, 0);
+      doc.text('Essential Eight Compliance Report', m, y); y += 7;
+      doc.setFontSize(10); doc.setTextColor(80, 80, 80);
+      doc.text(`${strategy?.name || audit.control_id} - ${maturity?.title || 'ML' + audit.maturity_level}`, m, y); y += 5;
+      doc.text(`Audit: ${audit.identifier} | Generated: ${new Date().toLocaleDateString('en-GB')}`, m, y); y += 10;
+      doc.setFontSize(11); doc.setTextColor(0, 0, 0); doc.text('Summary', m, y); y += 5;
+      doc.setFontSize(9); doc.setTextColor(60, 60, 60);
+      doc.text(`Compliance: ${summary.compliancePercent}% | Compliant: ${summary.compliant} | Non-Compliant: ${summary.nonCompliant} | Evidence Items: ${summary.evidenceItems}`, m, y); y += 10;
+      if (nc.length > 0) {
+        check(20); doc.setFontSize(12); doc.setTextColor(180, 0, 0); doc.text(`Non-Compliant Requirements (${nc.length})`, m, y); y += 6;
+        for (const ns of nc) {
+          check(20);
+          const req = reqs.find(r => r.id === ns.requirement_id);
+          if (!req) continue;
+          doc.setFontSize(8); doc.setTextColor(0, 0, 0);
+          const lines = doc.splitTextToSize(req.text, cw - 6);
+          doc.text(`${req.id.toUpperCase()}:`, m + 3, y); y += 4;
+          doc.text(lines, m + 6, y); y += lines.length * 3.5;
+          if (ns.notes) { doc.setTextColor(100, 100, 0); doc.text(`Note: ${ns.notes.substring(0, 120)}`, m + 6, y); y += 4; }
+          doc.setTextColor(180, 80, 0);
+          const recLines = doc.splitTextToSize(req.implementation || '', cw - 12);
+          doc.text('Mitigation:', m + 6, y); y += 3.5;
+          doc.text(recLines, m + 9, y); y += recLines.length * 3.5 + 4;
+        }
+      }
+      if (c.length > 0) {
+        check(10); doc.setFontSize(12); doc.setTextColor(0, 150, 0); doc.text(`Compliant Requirements (${c.length})`, m, y); y += 6;
+        autoTable(doc, { startY: y, head: [['ID', 'Requirement']], body: c.map(cs => { const req = reqs.find(r => r.id === cs.requirement_id); return [req?.id.toUpperCase() || cs.requirement_id, (req?.text || '').substring(0, 100)]; }), margin: { left: m, right: m }, styles: { fontSize: 7, cellPadding: 2 }, headStyles: { fillColor: [50, 130, 50], textColor: 255 } });
+        y = doc.lastAutoTable.finalY + 8;
+      }
+      if (allEvidence.length > 0) {
+        check(10); doc.setFontSize(12); doc.setTextColor(0, 0, 0); doc.text(`Evidence (${allEvidence.length})`, m, y); y += 6;
+        autoTable(doc, { startY: y, head: [['Type', 'Description', 'File']], body: allEvidence.map(ev => [ev.evidence_type, (ev.description || '').substring(0, 80), ev.file_name || '-']), margin: { left: m, right: m }, styles: { fontSize: 7, cellPadding: 2 }, headStyles: { fillColor: [30, 45, 80], textColor: 255 } });
+        y = doc.lastAutoTable.finalY + 8;
+      }
+      const tp = doc.getNumberOfPages();
+      for (let i = 1; i <= tp; i++) { doc.setPage(i); doc.setFontSize(7); doc.setTextColor(150, 150, 150); doc.text(`Essential Eight Report - Page ${i} of ${tp}`, m, doc.internal.pageSize.getHeight() - 8); }
+      doc.save(`audit-report-${audit.identifier.replace(/[^a-z0-9]/gi, '-')}.pdf`);
+    } catch (err) { console.error('PDF failed:', err); alert('Failed: ' + err.message); }
+    setGenerating(false);
+  }
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <Link to={'/audit' + (audit.audit_group ? '/workflow/' + audit.audit_group : '/' + auditId)} className="inline-flex items-center gap-1 text-sm text-cyber-muted hover:text-cyber-primary mb-6 transition-colors"><ArrowLeft size={14} /> Back</Link>
+      <div className="flex items-center justify-between mb-6">
+        <Link to={'/audit' + (audit.audit_group ? '/workflow/' + audit.audit_group : '/' + auditId)} className="inline-flex items-center gap-1 text-sm text-cyber-muted hover:text-cyber-primary transition-colors"><ArrowLeft size={14} /> Back</Link>
+        <button onClick={generatePDF} disabled={generating} className="flex items-center gap-2 rounded-lg bg-cyber-primary/20 border border-cyber-primary/30 px-4 py-2 text-sm font-medium text-cyber-primary hover:bg-cyber-primary/30 disabled:opacity-50 transition-colors">{generating ? 'Generating...' : 'Download PDF'}</button>
+      </div>
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-cyber-text mb-1">Compliance Report</h2>
         <p className="text-sm text-cyber-muted">{strategy?.name} — {maturity?.title}</p>
@@ -484,23 +555,37 @@ function AuditReport({ auditId }) {
         </div>
       </div>
       {nc.length > 0 && (
-        <div className="glass-card rounded-xl p-6 mb-6 border-l-4 border-cyber-danger/30">
-          <h3 className="text-lg font-bold text-cyber-danger mb-4 flex items-center gap-2"><XCircle size={18} /> Non-Compliant ({nc.length})</h3>
+        <div className="mb-8">
+          <h3 className="text-lg font-bold text-cyber-danger mb-4 flex items-center gap-2"><XCircle size={18} /> Non-Compliant Requirements ({nc.length})</h3>
           <div className="space-y-4">
             {nc.map(ns => {
               const req = reqs.find(r => r.id === ns.requirement_id);
               if (!req) return null;
+              const reqEvidence = allEvidence.filter(ev => ev.requirement_id === ns.requirement_id);
               return (
-                <div key={ns.id} className="rounded-lg border border-cyber-danger/20 bg-cyber-danger/5 p-4">
-                  <div className="flex items-start gap-2 mb-2">
-                    <span className="rounded bg-cyber-danger/10 px-1.5 py-0.5 text-[9px] font-bold text-cyber-danger">{req.id.toUpperCase()}</span>
+                <div key={ns.id} className="glass-card rounded-xl p-5 border-l-4 border-cyber-danger/30">
+                  <div className="flex items-start gap-2 mb-3">
+                    <span className="rounded bg-cyber-danger/10 px-2 py-0.5 text-[10px] font-bold text-cyber-danger">{req.id.toUpperCase()}</span>
                     <p className="text-sm text-cyber-text flex-1">{req.text}</p>
                   </div>
-                  {ns.notes && <p className="text-xs text-cyber-muted mb-2 italic">{ns.notes}</p>}
-                  <div className="rounded bg-cyber-bg/50 p-3 mt-2">
-                    <p className="text-xs font-bold text-cyber-secondary mb-1">Recommendation:</p>
+                  {ns.notes && <div className="rounded-lg bg-cyber-warning/5 border border-cyber-warning/20 p-3 mb-3"><p className="text-xs text-cyber-warning flex items-center gap-1.5"><AlertCircle size={12} /> {ns.notes}</p></div>}
+                  <div className="rounded-lg bg-cyber-danger/5 border border-cyber-danger/20 p-3 mb-3">
+                    <p className="text-xs font-bold text-cyber-secondary mb-1">Risk & Mitigation:</p>
                     <p className="text-xs text-cyber-text">{req.implementation}</p>
                   </div>
+                  {reqEvidence.length > 0 && (
+                    <div className="rounded-lg bg-cyber-bg/50 border border-cyber-border p-3">
+                      <p className="text-xs font-bold text-cyber-muted mb-2">Evidence ({reqEvidence.length}):</p>
+                      <div className="space-y-1.5">
+                        {reqEvidence.map(ev => (
+                          <div key={ev.id} className="flex items-center gap-2 text-xs">
+                            <span className="rounded bg-cyber-primary/10 text-cyber-primary px-1.5 py-0.5 text-[9px] font-medium uppercase">{ev.evidence_type}</span>
+                            <span className="text-cyber-text truncate flex-1">{ev.file_name || ev.description || '—'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -508,33 +593,41 @@ function AuditReport({ auditId }) {
         </div>
       )}
       {c.length > 0 && (
-        <div className="glass-card rounded-xl p-6 mb-6 border-l-4 border-cyber-success/30">
-          <h3 className="text-lg font-bold text-cyber-success mb-4 flex items-center gap-2"><CheckCircle size={18} /> Compliant ({c.length})</h3>
+        <div className="mb-6">
+          <h3 className="text-lg font-bold text-cyber-success mb-4 flex items-center gap-2"><CheckCircle size={18} /> Compliant Requirements ({c.length})</h3>
           <div className="space-y-2">
             {c.map(cs => {
               const req = reqs.find(r => r.id === cs.requirement_id);
               if (!req) return null;
+              const reqEvidence = allEvidence.filter(ev => ev.requirement_id === cs.requirement_id);
               return (
-                <div key={cs.id} className="flex items-start gap-2 rounded-lg border border-cyber-success/10 bg-cyber-success/5 p-3">
-                  <CheckCircle size={14} className="text-cyber-success mt-0.5 shrink-0" />
-                  <div><span className="text-[9px] font-bold text-cyber-success">{req.id.toUpperCase()}</span><p className="text-xs text-cyber-text">{req.text}</p></div>
+                <div key={cs.id} className="glass-card rounded-xl p-4 border-l-4 border-cyber-success/30">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle size={14} className="text-cyber-success mt-0.5 shrink-0" />
+                    <div className="flex-1">
+                      <span className="text-[9px] font-bold text-cyber-success">{req.id.toUpperCase()}</span>
+                      <p className="text-xs text-cyber-text">{req.text}</p>
+                    </div>
+                  </div>
+                  {reqEvidence.length > 0 && (
+                    <div className="mt-2 ml-6 flex flex-wrap gap-1.5">
+                      {reqEvidence.map(ev => (
+                        <span key={ev.id} className="inline-flex items-center gap-1 rounded bg-cyber-success/10 text-cyber-success px-1.5 py-0.5 text-[9px]">
+                          <FileUp size={8} />{ev.file_name || ev.description || ev.evidence_type}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         </div>
       )}
-      {(evidence || []).length > 0 && (
-        <div className="glass-card rounded-xl p-6">
-          <h3 className="text-lg font-bold text-cyber-text mb-4">Evidence ({(evidence || []).length})</h3>
-          <div className="space-y-2">
-            {(evidence || []).map(ev => (
-              <div key={ev.id} className="flex items-center gap-3 rounded-lg border border-cyber-border p-2">
-                <span className="rounded bg-cyber-bg px-1.5 py-0.5 text-[9px] font-medium text-cyber-muted uppercase">{ev.evidence_type}</span>
-                <span className="text-xs text-cyber-text flex-1 truncate">{ev.file_name || ev.description || '—'}</span>
-              </div>
-            ))}
-          </div>
+      {nc.length === 0 && c.length === 0 && (
+        <div className="glass-card rounded-xl p-8 text-center">
+          <CheckCircle className="text-cyber-success mx-auto mb-3" size={40} />
+          <p className="text-sm text-cyber-muted">No requirements have been assessed yet for this control.</p>
         </div>
       )}
     </div>
@@ -669,7 +762,7 @@ function AuditWorkflow({ auditId }) {
   useEffect(() => { if (!loadedRef.current) { loadedRef.current = true; loadAudit(); } }, [loadAudit]);
   async function setCompliant(reqId, compliant, notes) {
     if (audit?.locked) return; setSaving(true);
-    try { const s = await apiFetch('/audits/' + auditId + '/requirements/' + reqId, { method: 'PUT', body: JSON.stringify({ compliant, notes }) }); setStatuses(p => ({ ...p, [reqId]: s })); } catch (err) { console.error(err); }
+    try { const s = await apiFetch('/audits/' + auditId + '/requirements/' + reqId, { method: 'PUT', body: JSON.stringify({ compliant, notes }) }); setStatuses(p => ({ ...p, [reqId]: s })); if (currentStep < tc - 1) setTimeout(() => setCurrentStep(prev => prev + 1), 300); } catch (err) { console.error(err); }
     setSaving(false);
   }
   async function uploadEvidence(reqId, type, desc, file) {

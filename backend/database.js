@@ -60,10 +60,10 @@ export function initDb() {
   db.close();
 }
 
-export function createAuditGroup(identifier, controlIds) {
+export function createAuditGroup(identifier, controlIds, startLevel) {
   const db = getDb();
   const groupId = crypto.randomUUID();
-  const maturityLevels = [1, 2, 3];
+  const maturityLevels = !startLevel || startLevel === 'all' ? [1, 2, 3] : [Number(startLevel)];
   const created = [];
   try {
     for (const controlId of controlIds) {

@@ -60,7 +60,7 @@ const server = Bun.serve({
         const body = await req.json();
         if (!body.identifier || !body.controlIds || !Array.isArray(body.controlIds)) return errorResponse("identifier and controlIds array are required");
         try {
-          const result = createAuditGroup(body.identifier, body.controlIds);
+          const result = createAuditGroup(body.identifier, body.controlIds, body.startLevel || 'all');
           return jsonResponse(result, 201);
         } catch (e) {
           return errorResponse(e.message, 500);

@@ -22,6 +22,11 @@ export interface MitigationStrategy {
   maturityLevels: MaturityLevelData[];
 }
 
+function r(id: string, text: string, strategy: string): Requirement {
+  const { p, i, e, v } = g(text, strategy);
+  return { id, text, purpose: p, implementation: i, examples: e, evidence: v };
+}
+
 function g(t: string, s: string): { p: string; i: string; e: string[]; v: string[] } {
   const l = t.toLowerCase();
   if (l.includes('asset discovery')) return { p: 'Ensures all assets are known so vulnerability scanning covers the complete attack surface.', i: 'Deploy automated asset discovery tools scanning at least every 14 days. Integrate with CMDB.', e: ['Microsoft Endpoint Manager', 'Lansweeper', 'ServiceNow Discovery', 'Qualys Asset Inventory'], v: ['Discovery configuration', 'CMDB export', 'Scan reports', 'Reconciliation records'] };
