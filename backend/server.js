@@ -213,7 +213,13 @@ const server = Bun.serve({
       if (!(await file.exists())) {
         file = Bun.file(join(DIST_DIR, "index.html"));
       }
-      return new Response(file);
+      const headers = new Headers();
+      if (path.endsWith(".html")) {
+        headers.set("Cache-Control", "no-cache");
+      } else if (path.includes("/assets/")) {
+        headers.set("Cache-Control", "public, max-age=31536000, immutable");
+      }
+      return new Response(file, { headers });
 
     } catch (e) {
       console.error(e);
