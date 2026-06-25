@@ -4,7 +4,7 @@ import {
   Search, Shield, Clock, FileCode, UserCheck, Lock, Monitor, KeyRound,
   Moon, Sun, ChevronRight, ArrowLeft, X, ExternalLink, CheckCircle, AlertTriangle, Info, Database,
   Target, Wrench, Cpu, ClipboardCheck, FileUp, Trash2, Check, XCircle, AlertCircle, Palette,
-  BarChart3, Trash, Lock as LockIcon, Unlock, Play, FileText, Waves
+  BarChart3, Trash, Lock as LockIcon, Unlock, Play, PlayCircle, FileText, Waves
 } from 'lucide-react';
 import Fuse from 'fuse.js';
 import { strategies, type Requirement, type MaturityLevelData, type MitigationStrategy } from './data';
@@ -421,6 +421,7 @@ function AuditWorkflowSingle({ audit, strategy, maturity, onComplete, onPrev, on
         <div className="flex-1"><h3 className="text-sm font-bold text-cyber-text">{strategy.name} — {maturity.title}</h3><p className="text-xs text-cyber-muted">{audit.identifier}</p></div>
         {audit.locked && <span className="text-xs text-cyber-warning flex items-center gap-1"><LockIcon size={12} />Locked</span>}
       </div>
+      {strategy.id === 'patch-applications' && <div onClick={() => window.open('/patch-apps-humour-v2-narrated.mp4', '_blank', 'width=900,height=600')} className="mb-6 cursor-pointer rounded-xl border border-cyber-border bg-cyber-bg/50 p-4 hover:border-cyber-primary/40 transition-colors"><div className="flex items-center gap-3"><PlayCircle className="text-cyber-primary shrink-0" size={32} /><div><h4 className="text-sm font-bold text-cyber-text">Patch Applications Training Video</h4><p className="text-xs text-cyber-muted">Click to watch: Patch Applications Humour v2 Narrated</p></div></div></div>}
       <div className="glass-card rounded-xl p-4 mb-6">
         <div className="flex items-center justify-between mb-2"><span className="text-sm font-medium text-cyber-text">{cc}/{tc} compliant</span><span className="text-sm font-medium text-cyber-primary">{pct}%</span></div>
         <div className="h-2 rounded-full bg-cyber-border overflow-hidden mb-3"><div className="h-full rounded-full bg-cyber-primary transition-all" style={{ width: pct + '%' }} /></div>
