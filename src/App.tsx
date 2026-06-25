@@ -70,7 +70,7 @@ function StrategyDetail() {
   const { strategyId } = useParams();
   const strategy = strategies.find(s => s.id === strategyId);
   if (!strategy) return <Navigate to="/" replace />;
-  return (<div className="mx-auto max-w-7xl px-4 py-8"><Link to="/" className="inline-flex items-center gap-1 text-sm text-cyber-muted hover:text-cyber-primary mb-6 transition-colors"><ArrowLeft size={14} /> Back</Link><div className="mb-8"><h2 className="text-2xl font-bold text-cyber-text mb-2">{strategy.name}</h2><p className="text-cyber-muted text-sm max-w-3xl">{strategy.description}</p></div><div className="grid grid-cols-1 md:grid-cols-3 gap-4">{strategy.maturityLevels.map(ml => <MaturityCard key={ml.level} strategyId={strategy.id} maturity={ml} />)}</div></div>);
+  return (<div className="mx-auto max-w-7xl px-4 py-8"><Link to="/" className="inline-flex items-center gap-1 text-sm text-cyber-muted hover:text-cyber-primary mb-6 transition-colors"><ArrowLeft size={14} /> Back</Link><div className="mb-8"><h2 className="text-2xl font-bold text-cyber-text mb-2">{strategy.name}</h2><p className="text-cyber-muted text-sm max-w-3xl">{strategy.description}</p>{strategy.id === 'patch-applications' && <div onClick={() => window.open('/patch-apps-humour-v2-narrated.mp4', '_blank', 'width=900,height=600')} className="mt-4 cursor-pointer inline-flex items-center gap-3 rounded-xl border border-cyber-border bg-cyber-bg/50 px-5 py-4 hover:border-cyber-primary/40 transition-colors"><PlayCircle className="text-cyber-primary shrink-0" size={28} /><div><h4 className="text-sm font-bold text-cyber-text">Patch Applications Training Video</h4><p className="text-xs text-cyber-muted">Click to watch: Patch Applications Humour v2 Narrated</p></div></div>}</div><div className="grid grid-cols-1 md:grid-cols-3 gap-4">{strategy.maturityLevels.map(ml => <MaturityCard key={ml.level} strategyId={strategy.id} maturity={ml} />)}</div></div>);
 }
 
 function MaturityCard({ strategyId, maturity }) {
@@ -421,7 +421,7 @@ function AuditWorkflowSingle({ audit, strategy, maturity, onComplete, onPrev, on
         <div className="flex-1"><h3 className="text-sm font-bold text-cyber-text">{strategy.name} — {maturity.title}</h3><p className="text-xs text-cyber-muted">{audit.identifier}</p></div>
         {audit.locked && <span className="text-xs text-cyber-warning flex items-center gap-1"><LockIcon size={12} />Locked</span>}
       </div>
-      {strategy.id === 'patch-applications' && <div onClick={() => window.open('/patch-apps-humour-v2-narrated.mp4', '_blank', 'width=900,height=600')} className="mb-6 cursor-pointer rounded-xl border border-cyber-border bg-cyber-bg/50 p-4 hover:border-cyber-primary/40 transition-colors"><div className="flex items-center gap-3"><PlayCircle className="text-cyber-primary shrink-0" size={32} /><div><h4 className="text-sm font-bold text-cyber-text">Patch Applications Training Video</h4><p className="text-xs text-cyber-muted">Click to watch: Patch Applications Humour v2 Narrated</p></div></div></div>}
+
       <div className="glass-card rounded-xl p-4 mb-6">
         <div className="flex items-center justify-between mb-2"><span className="text-sm font-medium text-cyber-text">{cc}/{tc} compliant</span><span className="text-sm font-medium text-cyber-primary">{pct}%</span></div>
         <div className="h-2 rounded-full bg-cyber-border overflow-hidden mb-3"><div className="h-full rounded-full bg-cyber-primary transition-all" style={{ width: pct + '%' }} /></div>
