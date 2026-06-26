@@ -1,1 +1,7 @@
-node_modules/\ndist/
+node_modules/
+dist/
+data/audit.db
+data/audit.db-shm
+data/audit.db-wal
+data/uploads/
+*.log
